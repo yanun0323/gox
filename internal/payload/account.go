@@ -6,11 +6,21 @@ type UpdateEmailReq struct {
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate goentity -dir=123
+//go:generate goentity -v -rename=UpdatePhoneEntity -replace=true -unix -entity="member.go" -use="member.go" -repo="member.go"
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
 	CaptchaCode string `json:"code" binding:"required"`
+	CreateTime  string `json:"create_time"`
+	UpdateTime  string `json:"update_time"`
+	CreateAt    string `json:"create_at"`
+	UpdateAt    string `json:"update_at"`
+	Timer
+}
+
+type Timer struct {
+	CreateAt string `json:"create_at"`
+	UpdateAt string `json:"update_at"`
 }
 
 type UpdateNicknameReq struct {

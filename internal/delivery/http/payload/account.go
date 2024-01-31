@@ -6,7 +6,7 @@ type UpdateEmailReq struct {
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate goentity -v -rename=UpdatePhoneEntity -replace=true -unix -use="member.go" -repo="member.go"
+//go:generate goentity -v -rename=UpdatePhoneEntity -replace -unix -use="member.go" -repo="member.go"
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -17,7 +17,7 @@ type UpdatePhoneReq struct {
 	UpdateAt    string `json:"update_at"`
 }
 
-//go:generate goentity -v -replace=true -unix -use="member.go" -repo="member.go"
+//go:generate goentity -v -use="member.go" -repo="member.go"
 type UpdatePhoneResp struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

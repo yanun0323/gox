@@ -131,24 +131,20 @@ func (fp *FileParser) SaveFile() error {
 }
 
 func (fp *FileParser) findInternalDir() (string, error) {
-	paths := []string{
-		"../internal",
-		"../../internal",
-		"../../../internal",
-		"../../../../internal",
+
+	sep := string(filepath.Separator)
+	spans := strings.Split(fp.Dir, sep+"internal"+sep)
+	if len(spans) == 1 {
+		return "", errors.New("missing internal folder in working path")
+	}
+	prefix := strings.Join(spans[:len(spans)-1], sep)
+
+	internal := filepath.Join(prefix, "internal")
+	if *_debug {
+		println("internal folder path:", internal)
 	}
 
-	for _, p := range paths {
-		internal := filepath.Join(fp.Dir, p)
-		if !strings.EqualFold(filepath.Dir(internal), "internal") {
-			return internal, nil
-		}
-		if *_debug {
-			println("found internal:", filepath.Dir(internal), internal)
-		}
-	}
-
-	return "", errors.New("missing internal folder")
+	return internal, nil
 }
 
 func (*FileParser) parsingFile(path string, pkg string) (*File, error) {

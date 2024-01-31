@@ -233,35 +233,6 @@ func (pt PayloadTransformer) GetPayload() Structure {
 
 func (pt PayloadTransformer) GetEntity() Structure {
 	return pt.structure
-	// // !isReq -> empty method
-	// if !pt.isReq {
-	// 	return pt.structure
-	// }
-
-	// // isReq -> ToUse
-	// pt.structure.MethodName = "ToUseCase"
-	// short := pt.getShortName(pt.structure.StructName)
-	// fields := pt.getFields(pt.structure)
-	// content := make([]string, 0, len(fields))
-	// for _, f := range fields {
-	// 	content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
-
-	// }
-
-	// pt.structure.Method = fmt.Sprintf(_methodTemplate,
-	// 	short,
-	// 	pt.structure.StructName,
-	// 	"ToUseCase",
-	// 	"usecase."+pt.structure.StructName,
-	// 	"usecase."+pt.structure.StructName,
-	// 	strings.Join(content, "\n"),
-	// )
-
-	// if *_debug {
-	// 	println("entity:", pt.structure.Method)
-	// }
-
-	// return pt.structure
 }
 
 func (pt PayloadTransformer) GetUseCase() Structure {

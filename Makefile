@@ -6,8 +6,8 @@ test:
 
 debug:
 	make install &&\
-	goentity -help
+	esc-gen-model -help
 
 install:
 	go install ${CURDIR}/cmd/inspector &&\
-	go install ${CURDIR}/cmd/goentity
+	go install ${CURDIR}/cmd/esc-gen-model

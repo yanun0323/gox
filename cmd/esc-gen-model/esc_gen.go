@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const _commandName = "goentity"
+const _commandName = "esc-gen-model"
 
 var (
 	_replace  = flag.Bool("replace", false, "replace structure and method if there's already a same structure")
@@ -35,11 +35,11 @@ var (
 
 // Usage is a replacement usage function for the flags package.
 func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of goentity:\n")
-	fmt.Fprintf(os.Stderr, "\tgoentity [flags] -type T [directory]\n")
-	fmt.Fprintf(os.Stderr, "\tgoentity [flags] -type T files... # Must be a single package\n")
+	fmt.Fprintf(os.Stderr, "Usage of esc-gen-model:\n")
+	fmt.Fprintf(os.Stderr, "\tesc-gen-model [flags] -type T [directory]\n")
+	fmt.Fprintf(os.Stderr, "\tesc-gen-model [flags] -type T files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information, see:\n")
-	fmt.Fprintf(os.Stderr, "\thttps://pkg.go.dev/golang.org/x/tools/cmd/goentity\n")
+	fmt.Fprintf(os.Stderr, "\thttps://pkg.go.dev/golang.org/x/tools/cmd/esc-gen-model\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }

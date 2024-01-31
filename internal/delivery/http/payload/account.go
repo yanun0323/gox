@@ -8,7 +8,7 @@ type UpdateEmailReq struct {
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate goentity -v -replace -unix -use="member.go" -repo="member.go"
+//go:generate esc-gen-model -v -replace -unix -use="member.go" -repo="member.go"
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -31,7 +31,7 @@ func (upr *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
 	}
 }
 
-//go:generate goentity -v -use="member.go" -repo="member.go"
+//go:generate esc-gen-model -v -use="member.go" -repo="member.go"
 type UpdatePhoneResp struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

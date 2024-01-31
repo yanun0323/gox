@@ -92,7 +92,8 @@ func main() {
 	genUsecase := len(usecaseFilename) != 0
 
 	payloadFilename := ""
-	if pkg := os.Getenv("GOPACKAGE"); pkg == "payload" {
+	isCurrentFilePayload := os.Getenv("GOPACKAGE") == "payload"
+	if isCurrentFilePayload {
 		payloadFilename = os.Getenv("GOFILE")
 	}
 
@@ -107,7 +108,7 @@ func main() {
 	fp := FileManager{
 		Dir:                dir,
 		PayloadFilename:    payloadFilename,
-		PayloadReplace:     *_replace || strings.Contains(*_replaces, "payload"),
+		PayloadReplace:     isCurrentFilePayload || *_replace || strings.Contains(*_replaces, "payload"),
 		PayloadStruct:      pt.GetPayload(genUsecase),
 		EntityFilename:     strings.Trim(strings.Trim(*_entity, "\""), "'"),
 		EntityReplace:      *_replace || strings.Contains(*_replaces, "entity"),

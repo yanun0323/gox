@@ -1,20 +1,34 @@
 package payload
 
+import "gox/internal/domain/usecase"
+
 //go:generate inspector -foo=bar -arg2 -arg3=123 -o ./internal/entity
 type UpdateEmailReq struct {
 	Email       string `json:"email" binding:"required"`
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate goentity -v -rename=UpdatePhoneEntity -replace -unix -use="member.go" -repo="member.go"
+//go:generate goentity -v -replace -unix -use="member.go" -repo="member.go"
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
 	CaptchaCode string `json:"code" binding:"required"`
-	CreateTime  string `json:"create_time"`
-	UpdateTime  string `json:"update_time"`
-	CreateAt    string `json:"create_at"`
-	UpdateAt    string `json:"update_at"`
+	CreateTime  int64  `json:"create_time"`
+	UpdateTime  int64  `json:"update_time"`
+	CreateAt    int64  `json:"create_at"`
+	UpdateAt    int64  `json:"update_at"`
+}
+
+func (upr *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
+	return &usecase.UpdatePhoneReq{
+		Phone:       upr.Phone,
+		AreaCode:    upr.AreaCode,
+		CaptchaCode: upr.CaptchaCode,
+		CreateTime:  upr.CreateTime,
+		UpdateTime:  upr.UpdateTime,
+		CreateAt:    upr.CreateAt,
+		UpdateAt:    upr.UpdateAt,
+	}
 }
 
 //go:generate goentity -v -use="member.go" -repo="member.go"

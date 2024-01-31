@@ -16,6 +16,6 @@ func main() {
 	fmt.Printf("  os.Args = %#v\n", os.Args)
 
 	for _, ev := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
-		fmt.Println("  ", ev, "=", os.Getenv(ev))
+		fmt.Println("\t", ev, "=", os.Getenv(ev))
 	}
 }

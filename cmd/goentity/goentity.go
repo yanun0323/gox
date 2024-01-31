@@ -20,14 +20,17 @@ import (
 const _commandName = "goentity"
 
 var (
-	_replace = flag.Bool("replace", false, "replace structure and method if there's already a same structure")
-	_rename  = flag.String("rename", "", "set the name of generated structure")
-	_entity  = flag.String("entity", "", "file name to generate entity structure")
-	_use     = flag.String("use", "", "file name to generate use case structure")
-	_repo    = flag.String("repo", "", "file name to generate repository structure")
-	_unix    = flag.Bool("unix", false, "transfers fields which's tag has suffix '_time' from string to int64")
-	_debug   = flag.Bool("v", false, "show debug information")
-	_help    = flag.Bool("help", false, "show command help")
+	_replace  = flag.Bool("replace", false, "replace structure and method if there's already a same structure")
+	_replaces = flag.String("replaces", "", "payload/entity/use/repo. replace structure and method if there's already a specified same structure\n(no working when provides -replace)")
+	// _rename    = flag.String("rename", "", "set the name of generated structure")
+	_payload   = flag.String("payload", "", "file name to generate payload structure")
+	_entity    = flag.String("entity", "", "file name to generate entity structure")
+	_use       = flag.String("use", "", "file name to generate use case structure")
+	_repo      = flag.String("repo", "", "file name to generate repository structure")
+	_unix      = flag.Bool("unix", false, "set fields which's tag has suffix '_time' from 'string' to 'int64'")
+	_timestamp = flag.Bool("timestamp", false, "set fields which's tag has suffix '_time' from 'int64' to 'string'")
+	_debug     = flag.Bool("v", false, "show debug information")
+	_help      = flag.Bool("help", false, "show command help")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -56,13 +59,14 @@ func main() {
 
 	if *_debug {
 		println()
-		println("\treplace:", *_replace)
-		println("\trename:", *_rename)
-		println("\tentity:", *_entity)
-		println("\tuse:", *_use)
-		println("\trepo:", *_repo)
-		println("\tunix:", *_unix)
-		println("\tdebug:", *_debug)
+		println("\t", "replace", "=", *_replace)
+		// println("\t", "rename", "=", *_rename)
+		println("\t", "entity", "=", *_entity)
+		println("\t", "use", "=", *_use)
+		println("\t", "repo", "=", *_repo)
+		println("\t", "time_unix", "=", *_unix)
+		println("\t", "time_string", "=", *_timestamp)
+		println("\t", "debug", "=", *_debug)
 		println()
 	}
 
@@ -76,28 +80,48 @@ func main() {
 	err = pt.Init()
 	requireNoError(err, "initialize payload transformer")
 
-	entity := pt.GetEntity()
-	println("struct name:", entity.StructName)
-	println("struct:", entity.Struct)
-	println("method name:", entity.MethodName)
-	println("method:", entity.Method)
-
-	fp := FileParser{
-		Dir:              dir,
-		Entity:           strings.Trim(strings.Trim(*_entity, "\""), "'"),
-		EntityStruct:     pt.GetEntity(),
-		UseCase:          strings.Trim(strings.Trim(*_use, "\""), "'"),
-		UseCaseStruct:    pt.GetUseCase(),
-		Repository:       strings.Trim(strings.Trim(*_repo, "\""), "'"),
-		RepositoryStruct: pt.GetRepository(),
+	if *_debug {
+		entity := pt.GetEntity()
+		println("struct name:", entity.StructName)
+		println("struct:", entity.Struct)
+		println("method name:", entity.MethodName)
+		println("method:", entity.Method)
 	}
 
-	err = fp.ParseFile()
-	requireNoError(err, "parse file with file parser")
+	usecaseFilename := strings.Trim(strings.Trim(*_use, "\""), "'")
+	genUsecase := len(usecaseFilename) != 0
 
-	fp.InsertStruct()
-	err = fp.SaveFile()
-	requireNoError(err, "save file with file parser")
+	payloadFilename := ""
+	if pkg := os.Getenv("GOPACKAGE"); pkg == "payload" {
+		payloadFilename = os.Getenv("GOFILE")
+	}
+
+	if providePayloadFilename := strings.Trim(strings.Trim(*_payload, "\""), "'"); len(providePayloadFilename) != 0 {
+		payloadFilename = providePayloadFilename
+	}
+
+	if *_debug {
+		println("payload filename:", payloadFilename)
+	}
+
+	fp := FileManager{
+		Dir:                dir,
+		PayloadFilename:    payloadFilename,
+		PayloadReplace:     *_replace || strings.Contains(*_replaces, "payload"),
+		PayloadStruct:      pt.GetPayload(genUsecase),
+		EntityFilename:     strings.Trim(strings.Trim(*_entity, "\""), "'"),
+		EntityReplace:      *_replace || strings.Contains(*_replaces, "entity"),
+		EntityStruct:       pt.GetEntity(),
+		UseCaseFilename:    usecaseFilename,
+		UseCaseReplace:     *_replace || strings.Contains(*_replaces, "use"),
+		UseCaseStruct:      pt.GetUseCase(),
+		RepositoryFilename: strings.Trim(strings.Trim(*_repo, "\""), "'"),
+		RepositoryReplace:  *_replace || strings.Contains(*_replaces, "repo"),
+		RepositoryStruct:   pt.GetRepository(),
+	}
+
+	err = fp.Run()
+	requireNoError(err, "run file manager")
 }
 
 func setupLog() {
@@ -196,16 +220,16 @@ const _functionTemplate = `func %s() *%s {
 	}
 }`
 
-// payload <- usecase ToUseCase()
-// entity
-// repository
-// usecase <- repository, entity ToRepository
-
-func (pt PayloadTransformer) GetPayload() Structure {
+func (pt PayloadTransformer) GetPayload(genUsecase bool) Structure {
 	if !pt.isReq {
 		return pt.structure
 	}
+
 	// isReq -> ToUse
+	if !genUsecase {
+		return pt.structure
+	}
+
 	pt.structure.MethodName = "ToUseCase"
 	short := pt.getShortName(pt.structure.StructName)
 	fields := pt.getFields(pt.structure)
@@ -237,100 +261,9 @@ func (pt PayloadTransformer) GetEntity() Structure {
 
 func (pt PayloadTransformer) GetUseCase() Structure {
 	return pt.structure
-	// isReq -> ToRepository
-	if pt.isReq {
-		pt.structure.MethodName = "ToRepository"
-		short := pt.getShortName(pt.structure.StructName)
-		fields := pt.getFields(pt.structure)
-		content := make([]string, 0, len(fields))
-		for _, f := range fields {
-			content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
-
-		}
-
-		pt.structure.Method = fmt.Sprintf(_methodTemplate,
-			short,
-			pt.structure.StructName,
-			"ToRepository",
-			"repository."+pt.structure.StructName,
-			"repository."+pt.structure.StructName,
-			strings.Join(content, "\n"),
-		)
-
-		formatted, err := format.Source([]byte(pt.structure.Method))
-		if err == nil {
-			pt.structure.Method = string(formatted)
-		}
-
-		if *_debug {
-			println("use case:", pt.structure.Method)
-		}
-	} else {
-		// !isReq -> ToPayload
-		pt.structure.MethodName = "ToPayload"
-		short := pt.getShortName(pt.structure.StructName)
-		fields := pt.getFields(pt.structure)
-		content := make([]string, 0, len(fields))
-		for _, f := range fields {
-			content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
-
-		}
-
-		pt.structure.Method = fmt.Sprintf(_methodTemplate,
-			short,
-			pt.structure.StructName,
-			"ToPayload",
-			"payload."+pt.structure.StructName,
-			"payload."+pt.structure.StructName,
-			strings.Join(content, "\n"),
-		)
-
-		formatted, err := format.Source([]byte(pt.structure.Method))
-		if err == nil {
-			pt.structure.Method = string(formatted)
-		}
-
-		if *_debug {
-			println("use case:", pt.structure.Method)
-		}
-	}
-
-	return pt.structure
 }
 
 func (pt PayloadTransformer) GetRepository() Structure {
-	return pt.structure
-	// isReq -> empty method
-	if pt.isReq {
-		return pt.structure
-	}
-	// !isReq -> ToUseCase
-	pt.structure.MethodName = "ToUseCase"
-	short := pt.getShortName(pt.structure.StructName)
-	fields := pt.getFields(pt.structure)
-	content := make([]string, 0, len(fields))
-	for _, f := range fields {
-		content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
-	}
-
-	pt.structure.Method = fmt.Sprintf(_methodTemplate,
-		short,
-		pt.structure.StructName,
-		"ToUseCase",
-		"usecase."+pt.structure.StructName,
-		"usecase."+pt.structure.StructName,
-		strings.Join(content, "\n"),
-	)
-
-	formatted, err := format.Source([]byte(pt.structure.Method))
-	if err == nil {
-		pt.structure.Method = string(formatted)
-	}
-
-	if *_debug {
-		println("entity:", pt.structure.Method)
-	}
-
 	return pt.structure
 }
 
@@ -392,7 +325,7 @@ func (pt PayloadTransformer) handleStruct(st *ast.GenDecl) (string, bool, *ast.G
 
 	isReq := pt.renameAndIsRequest(targetStruct)
 
-	if *_unix {
+	fieldModifier := func(fieldPropertyTypeReplacer func(timeField *ast.Ident)) (string, bool, *ast.GenDecl, error) {
 		structContainer, ok := targetStruct.Type.(*ast.StructType)
 		if !ok {
 			return "", false, nil, errors.New("transfer to struct type")
@@ -418,13 +351,29 @@ func (pt PayloadTransformer) handleStruct(st *ast.GenDecl) (string, bool, *ast.G
 				return "", false, nil, errors.Errorf("type error at field (%d)", i)
 			}
 
-			if strings.EqualFold(fieldType.Name, "string") {
-				fieldType.Name = "int64"
-			}
+			fieldPropertyTypeReplacer(fieldType)
 		}
+
+		return targetStruct.Name.Name, isReq, st, nil
 	}
 
-	return targetStruct.Name.Name, isReq, st, nil
+	if *_unix {
+		return fieldModifier(func(timeField *ast.Ident) {
+			if strings.EqualFold(timeField.Name, "string") {
+				timeField.Name = "int64"
+			}
+		})
+	}
+
+	if *_timestamp {
+		return fieldModifier(func(timeField *ast.Ident) {
+			if strings.EqualFold(timeField.Name, "int64") {
+				timeField.Name = "string"
+			}
+		})
+	}
+
+	return fieldModifier(func(timeField *ast.Ident) {})
 }
 
 func (PayloadTransformer) parsingStruct(st *ast.GenDecl) (*ast.TypeSpec, error) {
@@ -441,30 +390,20 @@ func (pt PayloadTransformer) renameAndIsRequest(target *ast.TypeSpec) bool {
 	requireNotNil(target, "target struct")
 	requireNotNil(target.Name, "target struct name")
 
-	defer func() {
-		if len(*_rename) != 0 {
-			target.Name.Name = *_rename
-		} else {
-		}
-	}()
+	// defer func() {
+	// 	if len(*_rename) != 0 {
+	// 		target.Name.Name = *_rename
+	// 	}
+	// }()
 
-	if strings.HasSuffix(target.Name.Name, "Req") {
+	if strings.HasSuffix(target.Name.Name, "Req") ||
+		strings.HasSuffix(target.Name.Name, "Request") ||
+		strings.HasSuffix(target.Name.Name, "Res") {
 		return true
 	}
 
-	if strings.HasSuffix(target.Name.Name, "Request") {
-		return true
-	}
-
-	if strings.HasSuffix(target.Name.Name, "Res") {
-		return true
-	}
-
-	if strings.HasSuffix(target.Name.Name, "Resp") {
-		return false
-	}
-
-	if strings.HasSuffix(target.Name.Name, "Response") {
+	if strings.HasSuffix(target.Name.Name, "Resp") ||
+		strings.HasSuffix(target.Name.Name, "Response") {
 		return false
 	}
 

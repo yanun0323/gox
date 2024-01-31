@@ -12,39 +12,61 @@ import (
 	"github.com/pkg/errors"
 )
 
-type FileParser struct {
-	Dir                                           string
-	Entity, UseCase, Repository                   string
-	EntityStruct, UseCaseStruct, RepositoryStruct Structure
-	entityFile, useCaseFile, repositoryFile       *File
-	internalDir                                   string
+type FileManager struct {
+	Dir                                                                  string
+	PayloadFilename, EntityFilename, UseCaseFilename, RepositoryFilename string
+	PayloadReplace, EntityReplace, UseCaseReplace, RepositoryReplace     bool
+	PayloadStruct, EntityStruct, UseCaseStruct, RepositoryStruct         Structure
+	payloadFile, entityFile, useCaseFile, repositoryFile                 *File
+	internalDir                                                          string
 }
 
-func (fp *FileParser) ParseFile() error {
+func (fp *FileManager) Run() error {
+	if err := fp.ParseFile(); err != nil {
+		return errors.Wrap(err, "parse file")
+	}
+
+	fp.InsertStruct()
+
+	if err := fp.SaveFile(); err != nil {
+		return errors.Wrap(err, "save file")
+	}
+	return nil
+}
+
+func (fp *FileManager) ParseFile() error {
 	internalDir, err := fp.findInternalDir()
 	if err != nil {
 		return errors.Wrap(err, "find internal dir")
 	}
 	fp.internalDir = internalDir
 
-	if len(fp.Entity) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "entity", fp.Entity), "entity")
+	if len(fp.PayloadFilename) != 0 {
+		f, err := fp.parsingFile(filepath.Join(internalDir, "delivery", "http", "payload", fp.PayloadFilename), "payload")
+		if err != nil {
+			return errors.Wrap(err, "parsing entity file")
+		}
+		fp.payloadFile = f
+	}
+
+	if len(fp.EntityFilename) != 0 {
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "entity", fp.EntityFilename), "entity")
 		if err != nil {
 			return errors.Wrap(err, "parsing entity file")
 		}
 		fp.entityFile = f
 	}
 
-	if len(fp.UseCase) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "usecase", fp.UseCase), "usecase")
+	if len(fp.UseCaseFilename) != 0 {
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "usecase", fp.UseCaseFilename), "usecase")
 		if err != nil {
 			return errors.Wrap(err, "parsing use case file")
 		}
 		fp.useCaseFile = f
 	}
 
-	if len(fp.Repository) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "repository", fp.Repository), "repository")
+	if len(fp.RepositoryFilename) != 0 {
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "repository", fp.RepositoryFilename), "repository")
 		if err != nil {
 			return errors.Wrap(err, "parsing repository file")
 		}
@@ -54,74 +76,106 @@ func (fp *FileParser) ParseFile() error {
 	return nil
 }
 
-func (fp *FileParser) InsertStruct() {
+func (fp *FileManager) InsertStruct() {
+	if fp.payloadFile != nil {
+		fp.insertStruct(fp.payloadFile, fp.PayloadStruct, fp.PayloadReplace)
+	}
+
 	if fp.entityFile != nil {
-		fp.insertStruct(fp.entityFile, fp.EntityStruct)
+		fp.insertStruct(fp.entityFile, fp.EntityStruct, fp.EntityReplace)
 	}
 
 	if fp.useCaseFile != nil {
-		fp.insertStruct(fp.useCaseFile, fp.UseCaseStruct)
+		fp.insertStruct(fp.useCaseFile, fp.UseCaseStruct, fp.UseCaseReplace)
 	}
 
 	if fp.repositoryFile != nil {
-		fp.insertStruct(fp.repositoryFile, fp.RepositoryStruct)
+		fp.insertStruct(fp.repositoryFile, fp.RepositoryStruct, fp.RepositoryReplace)
 	}
 }
 
-func (*FileParser) insertStruct(f *File, st Structure) {
-	replacedStruct := false
-	replacedMethod := false
-	for _, node := range f.Nodes {
+func (fm *FileManager) insertStruct(f *File, st Structure, replace bool) {
+	structIdx := -1
+	methodIdx := -1
+
+	for i, node := range f.Nodes {
 		switch node.Type {
 		case 1:
 			if node.Name == st.StructName {
-				node.Value = st.Struct
-				replacedStruct = true
+				structIdx = i
 			}
 		case 2:
-			println()
-			println("compare node")
-			println("node:", fmt.Sprintf("%+v", *node))
-			println("structure:", fmt.Sprintf("%+v", st))
-			println(node.MethodReceiver == st.StructName)
-			println(node.Name == st.MethodName)
+			if *_debug {
+				println()
+				println("compare node")
+				println("node:", fmt.Sprintf("%+v", *node))
+				println("structure:", fmt.Sprintf("%+v", st))
+				println(node.MethodReceiver == st.StructName)
+				println(node.Name == st.MethodName)
+			}
+
 			if node.MethodReceiver == st.StructName &&
 				node.Name == st.MethodName {
-				node.Value = st.Method
-				replacedMethod = true
+				methodIdx = i
 			}
 		}
 	}
-	if !replacedStruct {
+
+	if structIdx == -1 {
 		f.Append(st.Struct, 1)
+		fm.upsertMethod(f, st, structIdx, methodIdx)
+		return
 	}
 
-	if !replacedMethod {
-		f.Append(st.Method, 2)
+	if replace {
+		f.Nodes[structIdx].Value = st.Struct
+		fm.upsertMethod(f, st, structIdx, methodIdx)
 	}
 }
 
-func (fp *FileParser) SaveFile() error {
+func (*FileManager) upsertMethod(f *File, st Structure, structIdx, methodIdx int) {
+	if methodIdx != -1 {
+		f.Nodes[methodIdx].Value = st.Method
+		return
+	}
+
+	f.Append(st.Method, 2)
+	method := f.Nodes[len(f.Nodes)-1]
+	for i := len(f.Nodes) - 2; i > structIdx; i-- {
+		f.Nodes[i+1] = f.Nodes[i]
+	}
+
+	f.Nodes[structIdx+1] = method
+}
+
+func (fp *FileManager) SaveFile() error {
 	if len(fp.internalDir) == 0 {
 		return errors.New("empty internal dir")
 	}
 
-	if len(fp.Entity) != 0 {
-		err := fp.saveFile(fp.entityFile, filepath.Join(fp.internalDir, "domain", "entity", fp.Entity))
+	if len(fp.PayloadFilename) != 0 {
+		err := fp.saveFile(fp.payloadFile, filepath.Join(fp.internalDir, "delivery", "http", "payload", fp.PayloadFilename))
+		if err != nil {
+			return errors.Errorf("save payload file, err: %+v", err)
+		}
+	}
+
+	if len(fp.EntityFilename) != 0 {
+		err := fp.saveFile(fp.entityFile, filepath.Join(fp.internalDir, "domain", "entity", fp.EntityFilename))
 		if err != nil {
 			return errors.Errorf("save entity file, err: %+v", err)
 		}
 	}
 
-	if len(fp.UseCase) != 0 {
-		err := fp.saveFile(fp.useCaseFile, filepath.Join(fp.internalDir, "domain", "usecase", fp.UseCase))
+	if len(fp.UseCaseFilename) != 0 {
+		err := fp.saveFile(fp.useCaseFile, filepath.Join(fp.internalDir, "domain", "usecase", fp.UseCaseFilename))
 		if err != nil {
 			return errors.Errorf("save use case file, err: %+v", err)
 		}
 	}
 
-	if len(fp.Repository) != 0 {
-		err := fp.saveFile(fp.repositoryFile, filepath.Join(fp.internalDir, "domain", "repository", fp.Repository))
+	if len(fp.RepositoryFilename) != 0 {
+		err := fp.saveFile(fp.repositoryFile, filepath.Join(fp.internalDir, "domain", "repository", fp.RepositoryFilename))
 		if err != nil {
 			return errors.Errorf("save repository file, err: %+v", err)
 		}
@@ -130,8 +184,7 @@ func (fp *FileParser) SaveFile() error {
 	return nil
 }
 
-func (fp *FileParser) findInternalDir() (string, error) {
-
+func (fp *FileManager) findInternalDir() (string, error) {
 	sep := string(filepath.Separator)
 	spans := strings.Split(fp.Dir, sep+"internal"+sep)
 	if len(spans) == 1 {
@@ -147,7 +200,7 @@ func (fp *FileParser) findInternalDir() (string, error) {
 	return internal, nil
 }
 
-func (*FileParser) parsingFile(path string, pkg string) (*File, error) {
+func (*FileManager) parsingFile(path string, pkg string) (*File, error) {
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		file := &File{Nodes: []*FileNode{}}
@@ -217,7 +270,7 @@ func (*FileParser) parsingFile(path string, pkg string) (*File, error) {
 	return file, nil
 }
 
-func (*FileParser) saveFile(file *File, path string) error {
+func (*FileManager) saveFile(file *File, path string) error {
 	content := file.ToString()
 	if len(content) == 0 {
 		log.Default().Printf("skip empty content for %s", path)
@@ -282,6 +335,7 @@ func (f *File) Append(val string, t int) {
 		MethodReceiver: methodReceiver,
 		Type:           t,
 	}
+
 	if *_debug {
 		println("file node:", fmt.Sprintf("%+v", fn))
 	}

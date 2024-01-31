@@ -17,20 +17,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+const _commandName = "goentity"
+
 var (
-	// typeNames   = flag.String("type", "", "comma-separated list of type names; must be set")
-	// output      = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
-	// trimprefix  = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
-	// linecomment = flag.Bool("linecomment", false, "use line comment text as printed text when present")
-	// buildTags   = flag.String("tags", "", "comma-separated list of build tags to apply")
-	_replace = flag.Bool("replace", false, "")
-	_rename  = flag.String("rename", "", "")
-	_entity  = flag.String("entity", "", "")
-	_use     = flag.String("use", "", "")
-	_repo    = flag.String("repo", "", "")
-	_unix    = flag.Bool("unix", false, "transfers fields which's tag has suffix '_time' from string to int64 if true")
-	_debug   = flag.Bool("v", false, "")
-	_help    = flag.Bool("help", false, "")
+	_replace = flag.Bool("replace", false, "replace structure and method if there's already a same structure")
+	_rename  = flag.String("rename", "", "set the name of generated structure")
+	_entity  = flag.String("entity", "", "file name to generate entity structure")
+	_use     = flag.String("use", "", "file name to generate use case structure")
+	_repo    = flag.String("repo", "", "file name to generate repository structure")
+	_unix    = flag.Bool("unix", false, "transfers fields which's tag has suffix '_time' from string to int64")
+	_debug   = flag.Bool("v", false, "show debug information")
+	_help    = flag.Bool("help", false, "show command help")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -45,10 +42,8 @@ func Usage() {
 }
 
 func main() {
-	log.SetFlags(0)
-	log.SetPrefix("goentity: ")
-	flag.Usage = Usage
-	flag.Parse()
+	setupLog()
+
 	if *_help {
 		flag.Usage()
 		return
@@ -61,13 +56,13 @@ func main() {
 
 	if *_debug {
 		println()
-		println("replace:", *_replace)
-		println("rename:", *_rename)
-		println("entity:", *_entity)
-		println("use:", *_use)
-		println("repo:", *_repo)
-		println("unix:", *_unix)
-		println("debug:", *_debug)
+		println("\treplace:", *_replace)
+		println("\trename:", *_rename)
+		println("\tentity:", *_entity)
+		println("\tuse:", *_use)
+		println("\trepo:", *_repo)
+		println("\tunix:", *_unix)
+		println("\tdebug:", *_debug)
 		println()
 	}
 
@@ -103,6 +98,13 @@ func main() {
 	fp.InsertStruct()
 	err = fp.SaveFile()
 	requireNoError(err, "save file with file parser")
+}
+
+func setupLog() {
+	log.SetFlags(0)
+	log.SetPrefix(_commandName + ": ")
+	flag.Usage = Usage
+	flag.Parse()
 }
 
 func getDir() (string, error) {
@@ -174,10 +176,12 @@ func (pt *PayloadTransformer) Init() error {
 }
 
 type Structure struct {
-	StructName string
-	Struct     string
-	MethodName string
-	Method     string
+	StructName   string
+	Struct       string
+	MethodName   string
+	Method       string
+	FunctionName string
+	Function     string
 }
 
 const _methodTemplate = `func (%s *%s) %s() *%s {
@@ -186,19 +190,29 @@ const _methodTemplate = `func (%s *%s) %s() *%s {
 	}
 }`
 
-func (pt PayloadTransformer) GetEntity() Structure {
-	// !isReq -> empty method
+const _functionTemplate = `func %s() *%s {
+	return &%s{
+		%s
+	}
+}`
+
+// payload <- usecase ToUseCase()
+// entity
+// repository
+// usecase <- repository, entity ToRepository
+
+func (pt PayloadTransformer) GetPayload() Structure {
 	if !pt.isReq {
 		return pt.structure
 	}
-
 	// isReq -> ToUse
 	pt.structure.MethodName = "ToUseCase"
 	short := pt.getShortName(pt.structure.StructName)
 	fields := pt.getFields(pt.structure)
 	content := make([]string, 0, len(fields))
 	for _, f := range fields {
-		content = append(content, fmt.Sprintf("%s: usecase.%s,", f, f))
+		content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
+
 	}
 
 	pt.structure.Method = fmt.Sprintf(_methodTemplate,
@@ -210,11 +224,6 @@ func (pt PayloadTransformer) GetEntity() Structure {
 		strings.Join(content, "\n"),
 	)
 
-	formatted, err := format.Source([]byte(pt.structure.Method))
-	if err == nil {
-		pt.structure.Method = string(formatted)
-	}
-
 	if *_debug {
 		println("entity:", pt.structure.Method)
 	}
@@ -222,7 +231,41 @@ func (pt PayloadTransformer) GetEntity() Structure {
 	return pt.structure
 }
 
+func (pt PayloadTransformer) GetEntity() Structure {
+	return pt.structure
+	// // !isReq -> empty method
+	// if !pt.isReq {
+	// 	return pt.structure
+	// }
+
+	// // isReq -> ToUse
+	// pt.structure.MethodName = "ToUseCase"
+	// short := pt.getShortName(pt.structure.StructName)
+	// fields := pt.getFields(pt.structure)
+	// content := make([]string, 0, len(fields))
+	// for _, f := range fields {
+	// 	content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
+
+	// }
+
+	// pt.structure.Method = fmt.Sprintf(_methodTemplate,
+	// 	short,
+	// 	pt.structure.StructName,
+	// 	"ToUseCase",
+	// 	"usecase."+pt.structure.StructName,
+	// 	"usecase."+pt.structure.StructName,
+	// 	strings.Join(content, "\n"),
+	// )
+
+	// if *_debug {
+	// 	println("entity:", pt.structure.Method)
+	// }
+
+	// return pt.structure
+}
+
 func (pt PayloadTransformer) GetUseCase() Structure {
+	return pt.structure
 	// isReq -> ToRepository
 	if pt.isReq {
 		pt.structure.MethodName = "ToRepository"
@@ -230,7 +273,8 @@ func (pt PayloadTransformer) GetUseCase() Structure {
 		fields := pt.getFields(pt.structure)
 		content := make([]string, 0, len(fields))
 		for _, f := range fields {
-			content = append(content, fmt.Sprintf("%s: repository.%s,", f, f))
+			content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
+
 		}
 
 		pt.structure.Method = fmt.Sprintf(_methodTemplate,
@@ -257,7 +301,8 @@ func (pt PayloadTransformer) GetUseCase() Structure {
 		fields := pt.getFields(pt.structure)
 		content := make([]string, 0, len(fields))
 		for _, f := range fields {
-			content = append(content, fmt.Sprintf("%s: payload.%s,", f, f))
+			content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
+
 		}
 
 		pt.structure.Method = fmt.Sprintf(_methodTemplate,
@@ -283,6 +328,7 @@ func (pt PayloadTransformer) GetUseCase() Structure {
 }
 
 func (pt PayloadTransformer) GetRepository() Structure {
+	return pt.structure
 	// isReq -> empty method
 	if pt.isReq {
 		return pt.structure
@@ -293,7 +339,7 @@ func (pt PayloadTransformer) GetRepository() Structure {
 	fields := pt.getFields(pt.structure)
 	content := make([]string, 0, len(fields))
 	for _, f := range fields {
-		content = append(content, fmt.Sprintf("%s: usecase.%s,", f, f))
+		content = append(content, fmt.Sprintf("%s: %s.%s,", f, short, f))
 	}
 
 	pt.structure.Method = fmt.Sprintf(_methodTemplate,
@@ -431,34 +477,25 @@ func (pt PayloadTransformer) renameAndIsRequest(target *ast.TypeSpec) bool {
 		}
 	}()
 
-	if pt.cutSuffix(target.Name, "Req") {
+	if strings.HasSuffix(target.Name.Name, "Req") {
 		return true
 	}
 
-	if pt.cutSuffix(target.Name, "Request") {
+	if strings.HasSuffix(target.Name.Name, "Request") {
 		return true
 	}
 
-	if pt.cutSuffix(target.Name, "Res") {
+	if strings.HasSuffix(target.Name.Name, "Res") {
 		return true
 	}
 
-	if pt.cutSuffix(target.Name, "Resp") {
+	if strings.HasSuffix(target.Name.Name, "Resp") {
 		return false
 	}
 
-	if pt.cutSuffix(target.Name, "Response") {
+	if strings.HasSuffix(target.Name.Name, "Response") {
 		return false
 	}
 
-	return false
-}
-
-func (PayloadTransformer) cutSuffix(name *ast.Ident, suffix string) bool {
-	if strings.HasSuffix(name.Name, suffix) {
-		before, _ := strings.CutSuffix(name.Name, suffix)
-		name.Name = before
-		return true
-	}
 	return false
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"go/format"
 	"io"
 	"log"
 	"os"
@@ -26,7 +28,7 @@ func (fp *FileParser) ParseFile() error {
 	fp.internalDir = internalDir
 
 	if len(fp.Entity) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", fp.Entity))
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "entity", fp.Entity), "entity")
 		if err != nil {
 			return errors.Wrap(err, "parsing entity file")
 		}
@@ -34,7 +36,7 @@ func (fp *FileParser) ParseFile() error {
 	}
 
 	if len(fp.UseCase) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", fp.UseCase))
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "usecase", fp.UseCase), "usecase")
 		if err != nil {
 			return errors.Wrap(err, "parsing use case file")
 		}
@@ -42,7 +44,7 @@ func (fp *FileParser) ParseFile() error {
 	}
 
 	if len(fp.Repository) != 0 {
-		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", fp.Repository))
+		f, err := fp.parsingFile(filepath.Join(internalDir, "domain", "repository", fp.Repository), "repository")
 		if err != nil {
 			return errors.Wrap(err, "parsing repository file")
 		}
@@ -67,24 +69,34 @@ func (fp *FileParser) InsertStruct() {
 }
 
 func (*FileParser) insertStruct(f *File, st Structure) {
-	replaced := false
+	replacedStruct := false
+	replacedMethod := false
 	for _, node := range f.Nodes {
 		switch node.Type {
 		case 1:
 			if node.Name == st.StructName {
 				node.Value = st.Struct
-				replaced = true
+				replacedStruct = true
 			}
 		case 2:
-			if node.MethodReceiver == st.MethodName &&
+			println()
+			println("compare node")
+			println("node:", fmt.Sprintf("%+v", *node))
+			println("structure:", fmt.Sprintf("%+v", st))
+			println(node.MethodReceiver == st.StructName)
+			println(node.Name == st.MethodName)
+			if node.MethodReceiver == st.StructName &&
 				node.Name == st.MethodName {
 				node.Value = st.Method
-				replaced = true
+				replacedMethod = true
 			}
 		}
 	}
-	if !replaced {
+	if !replacedStruct {
 		f.Append(st.Struct, 1)
+	}
+
+	if !replacedMethod {
 		f.Append(st.Method, 2)
 	}
 }
@@ -95,21 +107,21 @@ func (fp *FileParser) SaveFile() error {
 	}
 
 	if len(fp.Entity) != 0 {
-		err := fp.saveFile(fp.entityFile, filepath.Join(fp.internalDir, "domain", fp.Entity))
+		err := fp.saveFile(fp.entityFile, filepath.Join(fp.internalDir, "domain", "entity", fp.Entity))
 		if err != nil {
 			return errors.Errorf("save entity file, err: %+v", err)
 		}
 	}
 
 	if len(fp.UseCase) != 0 {
-		err := fp.saveFile(fp.useCaseFile, filepath.Join(fp.internalDir, "domain", fp.UseCase))
+		err := fp.saveFile(fp.useCaseFile, filepath.Join(fp.internalDir, "domain", "usecase", fp.UseCase))
 		if err != nil {
 			return errors.Errorf("save use case file, err: %+v", err)
 		}
 	}
 
 	if len(fp.Repository) != 0 {
-		err := fp.saveFile(fp.repositoryFile, filepath.Join(fp.internalDir, "domain", fp.Repository))
+		err := fp.saveFile(fp.repositoryFile, filepath.Join(fp.internalDir, "domain", "repository", fp.Repository))
 		if err != nil {
 			return errors.Errorf("save repository file, err: %+v", err)
 		}
@@ -129,7 +141,7 @@ func (fp *FileParser) findInternalDir() (string, error) {
 	for _, p := range paths {
 		internal := filepath.Join(fp.Dir, p)
 		if !strings.EqualFold(filepath.Dir(internal), "internal") {
-			return p, nil
+			return internal, nil
 		}
 		if *_debug {
 			println("found internal:", filepath.Dir(internal), internal)
@@ -139,10 +151,12 @@ func (fp *FileParser) findInternalDir() (string, error) {
 	return "", errors.New("missing internal folder")
 }
 
-func (*FileParser) parsingFile(path string) (*File, error) {
+func (*FileParser) parsingFile(path string, pkg string) (*File, error) {
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return &File{Nodes: []*FileNode{}}, nil
+		file := &File{Nodes: []*FileNode{}}
+		file.Append("package "+pkg, 0)
+		return file, nil
 	}
 
 	if err != nil {
@@ -215,12 +229,12 @@ func (*FileParser) saveFile(file *File, path string) error {
 	}
 
 	dir := filepath.Dir(path)
-	err := os.MkdirAll(dir, os.ModeDir)
+	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return errors.Errorf("mkdir all, err: %+v", err)
+		return errors.Errorf("mkdir (%s) all, err: %+v", dir, err)
 	}
 
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0766)
 	if err != nil {
 		return errors.Errorf("create file (%s), err: %+v", path, err)
 	}
@@ -228,6 +242,11 @@ func (*FileParser) saveFile(file *File, path string) error {
 
 	if err := f.Truncate(0); err != nil {
 		return errors.Errorf("truncate file (%s), err: %+v", path, err)
+	}
+
+	formatted, err := format.Source([]byte(content))
+	if err == nil {
+		content = string(formatted)
 	}
 
 	if _, err := f.WriteString(content); err != nil {
@@ -253,24 +272,25 @@ func (f *File) Append(val string, t int) {
 	case 2:
 		trimmed := strings.TrimSpace(val)
 		bracketSpans := strings.Split(trimmed, "(")
-		if len(bracketSpans) <= 3 {
+		if len(bracketSpans) <= 2 {
 			break
 		}
-		bracketSpaceSpans := strings.Split(bracketSpans[2], " ")
+		bracketSpaceSpans := strings.Split(bracketSpans[1], " ")
 		name = bracketSpaceSpans[len(bracketSpaceSpans)-1]
 		methodReceiver = f.findMethodReceiver(trimmed)
 	}
 
-	if *_debug {
-		print("file node:", name)
-	}
-
-	f.Nodes = append(f.Nodes, &FileNode{
+	fn := FileNode{
 		Value:          val,
 		Name:           name,
 		MethodReceiver: methodReceiver,
 		Type:           t,
-	})
+	}
+	if *_debug {
+		println("file node:", fmt.Sprintf("%+v", fn))
+	}
+
+	f.Nodes = append(f.Nodes, &fn)
 }
 
 func (*File) findMethodReceiver(row string) string {
@@ -283,7 +303,8 @@ func (*File) findMethodReceiver(row string) string {
 		requireNoError(errors.New("missing ')' in method"))
 	}
 
-	receiver := strings.Split(row[a+1:b], " ")[0]
+	receivers := strings.Split(row[a+1:b], " ")
+	receiver := receivers[len(receivers)-1]
 	if receiver[0] == '*' {
 		return receiver[1:]
 	}

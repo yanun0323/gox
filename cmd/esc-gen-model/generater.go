@@ -1,0 +1,290 @@
+package main
+
+import (
+	"log"
+	"path/filepath"
+
+	"github.com/pkg/errors"
+)
+
+type pathFunc func(internal, filename string) string
+
+var (
+	_usecase    = "usecase"
+	_repository = "repository"
+	_entity     = "entity"
+	_payload    = "payload"
+
+	_payloadPathFn pathFunc = func(internal, filename string) string {
+		return filepath.Join(internal, "delivery", "http", _payload, filename)
+	}
+	_entityPathFn pathFunc = func(internal, filename string) string {
+		return filepath.Join(internal, "domain", _entity, filename)
+	}
+	_usecasePathFn pathFunc = func(internal, filename string) string {
+		return filepath.Join(internal, "domain", _usecase, filename)
+	}
+	_repositoryPathFn pathFunc = func(internal, filename string) string {
+		return filepath.Join(internal, "domain", _repository, filename)
+	}
+)
+
+type Generator struct {
+	source     *Structure
+	Payload    *Element
+	Entity     *Element
+	Repository *Element
+	Usecase    *Element
+}
+
+func (g *Generator) ProvideSourceStructure(st Structure, filename string) {
+	g.source = &st
+	switch currentPackage() {
+	case _payload:
+		g.Payload.st = &st
+		g.Payload.filename = filename
+	case _entity:
+		g.Entity.st = &st
+		g.Entity.filename = filename
+	case _repository:
+		g.Repository.st = &st
+		g.Repository.filename = filename
+	case _usecase:
+		g.Usecase.st = &st
+		g.Usecase.filename = filename
+	}
+}
+
+func (g *Generator) DebugPrint() {
+	println()
+	println("Generator:")
+	println()
+	println("Payload:")
+	g.Payload.DebugPrint()
+	println("Entity:")
+	g.Entity.DebugPrint()
+	println("Repository:")
+	g.Repository.DebugPrint()
+	println("Usecase:")
+	g.Usecase.DebugPrint()
+	println()
+}
+
+func (g *Generator) Gen() {
+	g.Payload.Gen(g.source)
+	g.Entity.Gen(g.source)
+	g.Repository.Gen(g.source)
+	g.Usecase.Gen(g.source)
+}
+
+func (g *Generator) Save(internalDir string) error {
+	if err := g.Payload.Save(internalDir); err != nil {
+		return errors.Errorf("save payload, err: %+v", err)
+	}
+
+	if err := g.Entity.Save(internalDir); err != nil {
+		return errors.Errorf("save entity, err: %+v", err)
+	}
+
+	if err := g.Repository.Save(internalDir); err != nil {
+		return errors.Errorf("save repository, err: %+v", err)
+	}
+
+	if err := g.Usecase.Save(internalDir); err != nil {
+		return errors.Errorf("save usecase, err: %+v", err)
+	}
+
+	return nil
+}
+
+type Element struct {
+	st                                           *Structure
+	me                                           []*Method
+	replace                                      bool
+	toPayload, toEntity, toRepository, toUseCase bool
+	unix, timestamp                              bool
+	keepTag                                      bool
+	filename                                     string
+	pkg                                          string
+	pathFunc                                     pathFunc
+}
+
+type Method struct {
+	MethodName string
+	Method     string
+}
+
+func NewElement(pkg, filename string, replace, toPayload, toEntity, toRepo, toUseCase, unix, timestamp, keepTag bool, pf pathFunc) *Element {
+	if len(filename) == 0 && pkg != currentPackage() {
+		return nil
+	}
+
+	return &Element{
+		me:           make([]*Method, 0, 4),
+		replace:      replace,
+		toPayload:    toPayload,
+		toEntity:     toEntity,
+		toRepository: toRepo,
+		toUseCase:    toUseCase,
+		unix:         unix,
+		timestamp:    timestamp,
+		keepTag:      keepTag,
+		filename:     filename,
+		pkg:          pkg,
+		pathFunc:     pf,
+	}
+}
+
+func (elem *Element) DebugPrint() {
+	if elem == nil {
+		println("\tnil")
+		println()
+		return
+	}
+	println("\tstructName:", elem.st.StructName)
+	println("\tstruct", elem.st.Struct)
+	for _, me := range elem.me {
+		println("\t\tmethodName:", me.MethodName)
+		println("\t\tmethod:", me.Method)
+	}
+	println("\treplace:", elem.replace)
+	println("\ttoPayload:", elem.toPayload)
+	println("\ttoEntity:", elem.toEntity)
+	println("\ttoRepository:", elem.toRepository)
+	println("\ttoUseCase:", elem.toUseCase)
+	println("\tunix:", elem.unix)
+	println("\ttimestamp:", elem.timestamp)
+	println("\tkeepTag:", elem.keepTag)
+	println("\tfilename:", elem.filename)
+	println("\tpkg:", elem.pkg)
+	println()
+}
+
+func (elem *Element) Gen(source *Structure) {
+	if elem == nil {
+		return
+	}
+
+	if elem.st == nil {
+		elem.st = NewStructureFrom(source, elem.unix, elem.timestamp, elem.keepTag)
+	}
+
+	if elem.toPayload {
+		m := elem.st.GenMethod(_payload, "ToPayload")
+		elem.me = append(elem.me, m)
+	}
+
+	if elem.toEntity {
+		m := elem.st.GenMethod(_entity, "ToEntity")
+		elem.me = append(elem.me, m)
+	}
+
+	if elem.toRepository {
+		m := elem.st.GenMethod(_repository, "ToRepository")
+		elem.me = append(elem.me, m)
+	}
+
+	if elem.toUseCase {
+		m := elem.st.GenMethod(_usecase, "ToUseCase")
+		elem.me = append(elem.me, m)
+	}
+}
+
+func (elem *Element) Save(internalDir string) error {
+	if elem == nil {
+		return nil
+	}
+
+	isSourceStruct := currentPackage() == elem.pkg
+
+	/* load file */
+	parser := NewFileUpdater(elem.pkg, elem.pathFunc(internalDir, elem.filename))
+	file, err := parser.Parse()
+	if err != nil {
+		return errors.Errorf("parse file (%s), err: %+v", parser.path, err)
+	}
+
+	needInsertStruct := true
+	/* replace struct and method */
+	for _, node := range file.Nodes {
+		switch node.Type {
+		case ntStruct:
+			if node.Name != elem.st.StructName {
+				continue
+			}
+			needInsertStruct = false
+			if elem.replace && !isSourceStruct {
+				node.Value = elem.st.Struct
+			}
+		case ntMethod:
+			if node.MethodReceiver != elem.st.StructName {
+				continue
+			}
+			/* find match method */
+			for i := range elem.me {
+				if elem.me[i] == nil || node.Name != elem.me[i].MethodName {
+					continue
+				}
+
+				if elem.replace {
+					node.Value = elem.me[i].Method
+				}
+
+				elem.me[i] = nil
+				break
+			}
+		}
+	}
+
+	structMaxLine := 5
+	newFile := &File{
+		Nodes: make([]*FileNode, 0, len(file.Nodes)+structMaxLine),
+	}
+
+	/* move to new file */
+	for _, node := range file.Nodes {
+		switch node.Type {
+		case ntStruct:
+			if node.Name != elem.st.StructName {
+				newFile.Nodes = append(newFile.Nodes, node)
+				continue
+			}
+
+			newFile.Nodes = append(newFile.Nodes, node)
+			for _, me := range elem.me {
+				if me == nil {
+					continue
+				}
+
+				newFile.Nodes = append(newFile.Nodes, &FileNode{
+					Value: me.Method,
+				})
+			}
+		default:
+			newFile.Nodes = append(newFile.Nodes, node)
+		}
+
+	}
+
+	if needInsertStruct {
+		newFile.Nodes = append(newFile.Nodes, &FileNode{Value: elem.st.Struct})
+		for _, me := range elem.me {
+			if me == nil {
+				continue
+			}
+
+			newFile.Nodes = append(newFile.Nodes, &FileNode{
+				Value: me.Method,
+			})
+		}
+	}
+
+	/* save file */
+	if err := parser.SaveFile(newFile); err != nil {
+		return errors.Errorf("save file (%s), err: %+v", parser.path, err)
+	}
+
+	log.Default().Printf("save file (%s) succeed", parser.path)
+
+	return nil
+}

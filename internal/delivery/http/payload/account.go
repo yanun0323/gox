@@ -1,14 +1,18 @@
 package payload
 
-import "gox/internal/domain/usecase"
+import (
+	"gox/internal/domain/entity"
+	"gox/internal/domain/repository"
+	"gox/internal/domain/usecase"
+)
 
-//go:generate inspector -foo=bar -arg2 -arg3=123 -o ./internal/entity
+//goo:generate inspector -foo=bar -arg2 -arg3=123 -o ./internal/entity
 type UpdateEmailReq struct {
 	Email       string `json:"email" binding:"required"`
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate esc-gen-model -v -replace -unix -use="member.go" -repo="member.go"
+//go:generate esc-gen-model -replace -v -p2u -p2e -e member.go -u member.go -uu
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -17,21 +21,36 @@ type UpdatePhoneReq struct {
 	UpdateTime  int64  `json:"update_time"`
 	CreateAt    int64  `json:"create_at"`
 	UpdateAt    int64  `json:"update_at"`
+
+	repository.UpdatePhoneEntity
 }
 
-func (upr *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
+func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq {
+	return &entity.UpdatePhoneReq{
+		Phone:             elem.Phone,
+		AreaCode:          elem.AreaCode,
+		CaptchaCode:       elem.CaptchaCode,
+		CreateTime:        elem.CreateTime,
+		UpdateTime:        elem.UpdateTime,
+		CreateAt:          elem.CreateAt,
+		UpdateAt:          elem.UpdateAt,
+		UpdatePhoneEntity: elem.UpdatePhoneEntity,
+	}
+}
+func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
 	return &usecase.UpdatePhoneReq{
-		Phone:       upr.Phone,
-		AreaCode:    upr.AreaCode,
-		CaptchaCode: upr.CaptchaCode,
-		CreateTime:  upr.CreateTime,
-		UpdateTime:  upr.UpdateTime,
-		CreateAt:    upr.CreateAt,
-		UpdateAt:    upr.UpdateAt,
+		Phone:             elem.Phone,
+		AreaCode:          elem.AreaCode,
+		CaptchaCode:       elem.CaptchaCode,
+		CreateTime:        elem.CreateTime,
+		UpdateTime:        elem.UpdateTime,
+		CreateAt:          elem.CreateAt,
+		UpdateAt:          elem.UpdateAt,
+		UpdatePhoneEntity: elem.UpdatePhoneEntity,
 	}
 }
 
-//go:generate esc-gen-model -v -use="member.go" -repo="member.go"
+//goo:generate esc-gen-model -u="member.go" -r="member.go"
 type UpdatePhoneResp struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

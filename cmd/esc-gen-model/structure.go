@@ -77,17 +77,12 @@ func NewStructureFrom(st *Structure, unix, timestamp, keepTag bool) *Structure {
 }
 
 func isTimeField(field string) bool {
-	switch field {
-	case "CreateTime", "CreatedTime", "UpdateTime", "UpdatedTime", "StartTime", "StartedTime", "EndTime", "EndedTime":
-		return true
-	default:
-		return false
-	}
+	return strings.HasSuffix(field, "Time") || strings.HasSuffix(field, "time")
 }
 
 const (
 	_methodTemplate = `
-	func (%s *%s) %s() *%s { /* generate by ` + _commandName + ` */
+	func (%s *%s) %s() *%s {
 		return &%s{
 			%s
 		}

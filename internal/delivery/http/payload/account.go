@@ -25,7 +25,7 @@ type UpdatePhoneReq struct {
 	repository.UpdatePhoneEntity
 }
 
-func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq { /* generate by esc-gen-model */
+func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq {
 	return &entity.UpdatePhoneReq{
 		Phone:             elem.Phone,
 		AreaCode:          elem.AreaCode,
@@ -38,7 +38,7 @@ func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq { /* generate by e
 	}
 }
 
-func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq { /* generate by esc-gen-model */
+func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
 	return &usecase.UpdatePhoneReq{
 		Phone:             elem.Phone,
 		AreaCode:          elem.AreaCode,

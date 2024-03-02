@@ -14,7 +14,8 @@ const _commandName = "esc-gen-model"
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
 	_debug   = flag.Bool("v", false, "show debug information")
-	_help    = flag.Bool("help", false, "show command help")
+	_help    = flag.Bool("h", false, "show command help")
+	_helpAll = flag.Bool("help", false, "show command help detail")
 
 	_p   = flag.String("p", "", "file name to generate payload structure")
 	_pk  = flag.Bool("pk", false, "keep struct field tags")
@@ -55,18 +56,52 @@ var (
 
 // Usage is a replacement usage function for the flags package.
 func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of esc-gen-model:\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-model [flags]\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-model -e filename.go -u filename.go -replace\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-model -e filename.go -u filename.go -r filename.go -replaces e,r\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-model -v -ru -r filename.go\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-model -v -rt -r filename.go\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "%s:\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-h\t顯示用法\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-help\t顯示用法詳細資訊\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t{$}\t代表要產的目標類型, 用以下字母替換:\n")
+	fmt.Fprintf(os.Stderr, "\t\tp=payload e=entity u=usecase r=repository\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}\t目標檔名(不需要路徑)\t\t\t\t-p=member.go\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}k\t保留目標 Struct Tag\t\t\t\t-pk\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}r\t強制取代目標現有的 Struct 及 Method\t\t-pr\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}u\t將目標 Time 結尾的 string 欄位轉換為 int64\t-pu\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}t\t將目標 Time 結尾的 int64 欄位轉換為 string\t-pt\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}2{$}\t指定目標生成 ToUseCase/ToEntity/ToRepository Method \t-p2u (payload 生成 ToUseCase 的方法)\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t範例:\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p=member.go -p2u -pu\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t生成 payload, 生成在 member.go 內, 生成 ToUseCase 的方法, 將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p2e -p2u -e=member.go -e2u -eu -u=member_use.go -uu\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t在 payload 生成 ToEntity & ToUseCase 的方法\n")
+	fmt.Fprintf(os.Stderr, "\t生成 entity, 生成在 member.go 內, 生成 ToUseCase 的方法, 將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\t生成 usecase, 生成在 member_use.go 內, 將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 func main() {
 	setupLog()
+
+	if *_helpAll {
+		flag.PrintDefaults()
+		flag.Usage()
+		return
+	}
 
 	if *_help {
 		flag.Usage()

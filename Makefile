@@ -10,6 +10,11 @@ test:
 	make install &&\
 	go generate -v ./...
 
+help:
+	make install &&\
+	esc-gen-model -h &&\
+	esc-gen-domain -h
+
 install:
 	go install ${CURDIR}/cmd/inspector &&\
 	go install ${CURDIR}/cmd/esc-gen-model &&\

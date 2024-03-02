@@ -14,20 +14,25 @@ const _commandName = "esc-gen-domain"
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
 	_debug   = flag.Bool("v", false, "show debug information")
-	_help    = flag.Bool("help", false, "show command help")
+	_help    = flag.Bool("h", false, "show command help")
 	_name    = flag.String("f", "", "file name to generate implementation")
 )
 
 // Usage is a replacement usage function for the flags package.
 func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of esc-gen-domain:\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-domain [flags]\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-domain -e filename.go -u filename.go -replace\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-domain -e filename.go -u filename.go -r filename.go -replaces e,r\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-domain -v -ru -r filename.go\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate esc-gen-domain -v -rt -r filename.go\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "%s: 根據的 Interface 位置，到 usecase/repository 生成對應的程式碼\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
+	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標重複的 Method\n")
+	fmt.Fprintf(os.Stderr, "\t-f\t\t目標檔案名稱\t\t-f=member_usecase.go\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t範例:\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -f=member.go -replace\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t到 usecase/repository member.go 生成程式碼, 強制取代目標重複的 Method\n")
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 func main() {

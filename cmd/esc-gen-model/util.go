@@ -28,15 +28,6 @@ func requireNoError(err error, msg ...string) {
 	}
 }
 
-func requireNotNil(a any, msg ...string) {
-	if a == nil {
-		if len(msg) == 0 || len(msg[0]) == 0 {
-			log.Fatalf("nil struct (%T)", a)
-		}
-		log.Fatalf("nil struct (%T), err: %s", a, msg[0])
-	}
-}
-
 func cleanStringQuote(s string) string {
 	return strings.Trim(strings.Trim(s, "\""), "'")
 }
@@ -57,17 +48,4 @@ func findInternalPath(dir string) (string, error) {
 	}
 
 	return internal, nil
-}
-
-func findProjectPath(dir string) (string, error) {
-	spans := strings.Split(dir, "internal")
-	if len(spans) == 1 {
-		return "", errors.New("missing internal folder in working path")
-	}
-
-	if *_debug {
-		println("project folder path:", spans[0])
-	}
-
-	return spans[0], nil
 }

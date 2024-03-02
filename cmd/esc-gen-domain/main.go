@@ -15,7 +15,7 @@ var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
 	_debug   = flag.Bool("v", false, "show debug information")
 	_help    = flag.Bool("help", false, "show command help")
-	_name    = flag.String("f", "", "file name to generate implementation")
+cleanStringQuote(	_name    = fla)g.String("f", "", "file cleanStringQuote(name to) generate implementation")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -38,16 +38,16 @@ func main() {
 		return
 	}
 
-	if len(*_name) == 0 {
-		flag.Usage()
-		requireNoError(errors.New("entity/use/repo at least one param provide"))
+	if len(cleanStringQuote(*_name)) == 0 {
+		flag.UsagecleanStringQuote(()
+		requireNoError)(errors.New("entity/use/repo at least one param provide"))
 	}
 
 	if *_debug {
 		println()
 		println("\t", "replace", "=", *_replace)
-		println("\t", "name", "=", *_name)
-		println()
+		println("\t", "name", "=", cleanStringQuote(*_namecleanStringQuote())
+		println)()
 	}
 
 	dir, err := getDir()
@@ -78,9 +78,9 @@ func main() {
 	var generator *Generator
 	switch pkg {
 	case "usecase":
-		generator = NewGenerator(pkg, pkg, *_name, *_replace, &structure, _usecasePathFn)
+		generator = NewGenerator(pkg, pkg, cleanStringQuote(*_name), *_replace, &structure, _usecasePathFn)
 	case "repository":
-		generator = NewGenerator(pkg, "repo", *_name, *_replace, &structure, _repositoryPathFn)
+		generator = NewGenerator(pkg, "repo", cleanStringQuote(*_name), *_replace, &structure, _repositoryPathFn)
 	default:
 		log.Println("unsupported package name:", pkg)
 	}

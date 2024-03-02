@@ -13,7 +13,8 @@ type Structure struct {
 func NewStructureFrom(st *Structure, unix, timestamp, keepTag bool) *Structure {
 	lines := strings.Split(st.Struct, "\n")
 	rows := lines[1 : len(lines)-1]
-	newLines := make([]string, 0, len(lines))
+	newLines := make([]string, 0, len(lines)+1)
+
 	newLines = append(newLines, lines[0])
 
 	for _, row := range rows {
@@ -66,7 +67,9 @@ func NewStructureFrom(st *Structure, unix, timestamp, keepTag bool) *Structure {
 		}
 		newLines = append(newLines, strings.Join(newSpans, " "))
 	}
+
 	newLines = append(newLines, lines[len(lines)-1])
+
 	return &Structure{
 		StructName: st.StructName,
 		Struct:     strings.Join(newLines, "\n"),
@@ -83,11 +86,13 @@ func isTimeField(field string) bool {
 }
 
 const (
-	_methodTemplate = `func (%s *%s) %s() *%s {
-	return &%s{
-		%s
+	_methodTemplate = `
+	func (%s *%s) %s() *%s { /* generate by ` + _commandName + ` */
+		return &%s{
+			%s
+		}
 	}
-}`
+`
 )
 
 func (st *Structure) GenMethod(pkg, methodName string) *Method {

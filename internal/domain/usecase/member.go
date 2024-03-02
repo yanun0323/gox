@@ -1,6 +1,14 @@
 package usecase
 
-import "gox/internal/domain/repository"
+import (
+	"context"
+	"gox/internal/domain/repository"
+)
+
+//go:generate esc-gen-domain -v -f member.go
+type MemberUseCase interface {
+	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
+}
 
 type UpdatePhoneEntity struct {
 	Phone       string `json:"phone" binding:"required"`

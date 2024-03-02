@@ -129,7 +129,9 @@ func main() {
 	println("filename", filename)
 	generator.ProvideSourceStructure(structure, filename)
 	generator.Gen()
-	generator.DebugPrint()
+	if *_debug {
+		generator.DebugPrint()
+	}
 
 	err = generator.Save(internalPath)
 	requireNoError(err, "save generated file")

@@ -1,5 +1,12 @@
 package repository
 
+import "context"
+
+//go:generate esc-gen-domain -v -f member.go
+type MemberUsecase interface {
+	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
+}
+
 type UpdatePhoneEntity struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -18,4 +25,16 @@ type UpdatePhoneResp struct {
 	UpdateTime  string `json:"update_time"`
 	CreateAt    string `json:"create_at"`
 	UpdateAt    string `json:"update_at"`
+}
+
+type UpdatePhoneReq struct {
+	Phone       string
+	AreaCode    string
+	CaptchaCode string
+	CreateTime  int64
+	UpdateTime  int64
+	CreateAt    int64
+	UpdateAt    int64
+
+	UpdatePhoneEntity
 }

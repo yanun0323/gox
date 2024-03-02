@@ -99,7 +99,7 @@ func (g *Generator) Save(internalDir string) error {
 
 type Element struct {
 	st                                           *Structure
-	me                                           []*Method
+	me                                           map[string]*Method
 	replace                                      bool
 	toPayload, toEntity, toRepository, toUseCase bool
 	unix, timestamp                              bool
@@ -120,7 +120,7 @@ func NewElement(pkg, filename string, replace, toPayload, toEntity, toRepo, toUs
 	}
 
 	return &Element{
-		me:           make([]*Method, 0, 4),
+		me:           make(map[string]*Method, 4),
 		replace:      replace,
 		toPayload:    toPayload,
 		toEntity:     toEntity,
@@ -171,22 +171,22 @@ func (elem *Element) Gen(source *Structure) {
 
 	if elem.toPayload {
 		m := elem.st.GenMethod(_payload, "ToPayload")
-		elem.me = append(elem.me, m)
+		elem.me[m.MethodName] = m
 	}
 
 	if elem.toEntity {
 		m := elem.st.GenMethod(_entity, "ToEntity")
-		elem.me = append(elem.me, m)
+		elem.me[m.MethodName] = m
 	}
 
 	if elem.toRepository {
 		m := elem.st.GenMethod(_repository, "ToRepository")
-		elem.me = append(elem.me, m)
+		elem.me[m.MethodName] = m
 	}
 
 	if elem.toUseCase {
 		m := elem.st.GenMethod(_usecase, "ToUseCase")
-		elem.me = append(elem.me, m)
+		elem.me[m.MethodName] = m
 	}
 }
 
@@ -220,19 +220,17 @@ func (elem *Element) Save(internalDir string) error {
 			if node.MethodReceiver != elem.st.StructName {
 				continue
 			}
+			
 			/* find match method */
-			for i := range elem.me {
-				if elem.me[i] == nil || node.Name != elem.me[i].MethodName {
-					continue
-				}
-
-				if elem.replace {
-					node.Value = elem.me[i].Method
-				}
-
-				elem.me[i] = nil
-				break
+			if elem.me[node.Name] == nil {
+				continue
 			}
+
+			if elem.replace {
+				node.Value = elem.me[node.Name].Method
+			}
+
+			delete(elem.me, node.Name)
 		}
 	}
 
@@ -252,10 +250,6 @@ func (elem *Element) Save(internalDir string) error {
 
 			newFile.Nodes = append(newFile.Nodes, node)
 			for _, me := range elem.me {
-				if me == nil {
-					continue
-				}
-
 				newFile.Nodes = append(newFile.Nodes, &FileNode{
 					Value: me.Method,
 				})
@@ -269,10 +263,6 @@ func (elem *Element) Save(internalDir string) error {
 	if needInsertStruct {
 		newFile.Nodes = append(newFile.Nodes, &FileNode{Value: elem.st.Struct})
 		for _, me := range elem.me {
-			if me == nil {
-				continue
-			}
-
 			newFile.Nodes = append(newFile.Nodes, &FileNode{
 				Value: me.Method,
 			})

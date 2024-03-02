@@ -12,7 +12,7 @@ type UpdateEmailReq struct {
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate esc-gen-model -replace -v -p2u -p2e -e member.go -u member.go -uu
+//go:generate esc-gen-model -replace -p2u -p2e -e member.go -u member.go -uu
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -25,7 +25,7 @@ type UpdatePhoneReq struct {
 	repository.UpdatePhoneEntity
 }
 
-func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq {
+func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq { /* generate by esc-gen-model */
 	return &entity.UpdatePhoneReq{
 		Phone:             elem.Phone,
 		AreaCode:          elem.AreaCode,
@@ -37,7 +37,8 @@ func (elem *UpdatePhoneReq) ToEntity() *entity.UpdatePhoneReq {
 		UpdatePhoneEntity: elem.UpdatePhoneEntity,
 	}
 }
-func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
+
+func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq { /* generate by esc-gen-model */
 	return &usecase.UpdatePhoneReq{
 		Phone:             elem.Phone,
 		AreaCode:          elem.AreaCode,

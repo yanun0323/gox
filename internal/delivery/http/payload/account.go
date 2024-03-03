@@ -12,7 +12,7 @@ type UpdateEmailReq struct {
 	CaptchaCode string `json:"code" binding:"required"`
 }
 
-//go:generate esc-gen-model -replace -p2u -p2e -e member.go -u member.go -uu
+//go:generate esc-modelgen -replace -p2u -p2e -e member.go -u member.go -uu
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`
@@ -51,7 +51,7 @@ func (elem *UpdatePhoneReq) ToUseCase() *usecase.UpdatePhoneReq {
 	}
 }
 
-//goo:generate esc-gen-model -u="member.go" -r="member.go"
+//goo:generate esc-modelgen -u="member.go" -r="member.go"
 type UpdatePhoneResp struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

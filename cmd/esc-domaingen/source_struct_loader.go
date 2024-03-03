@@ -15,7 +15,7 @@ import (
 type SourceStructLoader struct {
 	Dir      string
 	PrintAst bool
-	inter    Interface
+	in       Interface
 }
 
 func (pt *SourceStructLoader) Load() error {
@@ -41,7 +41,7 @@ func (pt *SourceStructLoader) Load() error {
 		errors.Errorf("format node, err: %+v", err)
 	}
 
-	pt.inter = Interface{
+	pt.in = Interface{
 		InterfaceName: interfaceName,
 		Interface:     buffer.String(),
 	}
@@ -49,7 +49,7 @@ func (pt *SourceStructLoader) Load() error {
 }
 
 func (pt SourceStructLoader) GetStruct() Interface {
-	return pt.inter
+	return pt.in
 }
 
 func (SourceStructLoader) parsingFile(dir string) (*token.FileSet, *token.File, *ast.File) {

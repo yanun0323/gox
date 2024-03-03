@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const _commandName = "esc-gen-domain"
+const _commandName = "esc-domaingen"
 
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
@@ -21,7 +21,7 @@ var (
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s: 根據的 Interface 位置，到 usecase/repository 生成對應的程式碼\n", _commandName)
+	fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置: usecase/repository\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
 	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標重複的 Method\n")
@@ -73,9 +73,14 @@ func main() {
 		println("dir:", dir)
 		println("internal path:", internalPath)
 		println("struct name:", structure.InterfaceName)
+		println("struct type:", structure.GetStructType())
 		println("struct:", structure.Interface)
 		println("package:", currentPackage())
 		println()
+	}
+
+	if t := structure.GetStructType(); t != "interface" {
+		requireNoError(errors.Errorf("unsupported type %s, this command only works for `interface`", t))
 	}
 
 	pkg := currentPackage()

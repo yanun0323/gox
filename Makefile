@@ -12,15 +12,15 @@ test:
 
 help:
 	make install &&\
-	esc-gen-model -h &&\
-	esc-gen-domain -h
+	esc-modelgen -h &&\
+	esc-domaingen -h
 
 install:
 	go install ${CURDIR}/cmd/inspector &&\
-	go install ${CURDIR}/cmd/esc-gen-model &&\
-	go install ${CURDIR}/cmd/esc-gen-domain
+	go install ${CURDIR}/cmd/esc-modelgen &&\
+	go install ${CURDIR}/cmd/esc-domaingen
 
 remove:
 	rm -rf ${HOME}/go/bin/inspector;\
-	rm -rf ${HOME}/go/bin/esc-gen-model;\
-	rm -rf ${HOME}/go/bin/esc-gen-domain
+	rm -rf ${HOME}/go/bin/esc-modelgen;\
+	rm -rf ${HOME}/go/bin/esc-domaingen

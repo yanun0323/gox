@@ -39,12 +39,12 @@ type Generator struct {
 	pathFunc pathFunc
 }
 
-func NewGenerator(pkg Package, receiver, filename string, replace bool, inter *Interface, pf pathFunc) *Generator {
+func NewGenerator(pkg Package, receiver, filename string, replace bool, in *Interface, pf pathFunc) *Generator {
 	return &Generator{
 		pkg:      pkg,
 		receiver: receiver,
 		replace:  replace,
-		imp:      NewImplementation(pkg, receiver, inter),
+		imp:      NewImplementation(pkg, receiver, in),
 		filename: filename,
 		pathFunc: pf,
 	}

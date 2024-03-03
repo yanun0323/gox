@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const _commandName = "esc-gen-model"
+const _commandName = "esc-modelgen"
 
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
@@ -57,7 +57,7 @@ var (
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s:\n", _commandName)
+	fmt.Fprintf(os.Stderr, "%s: 根據定義的結構 package, 生成程式碼到對應位置: payload/entity/usecase/repository\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t顯示用法\n")
 	fmt.Fprintf(os.Stderr, "\n")
@@ -149,9 +149,14 @@ func main() {
 		println("dir:", dir)
 		println("internal path:", internalPath)
 		println("struct name:", structure.StructName)
+		println("struct type:", structure.GetStructType())
 		println("struct:", structure.Struct)
 		println("package:", currentPackage())
 		println()
+	}
+
+	if t := structure.GetStructType(); t != "struct" {
+		requireNoError(errors.Errorf("unsupported type %s, this command only works for `struct`", t))
 	}
 
 	generator := Generator{

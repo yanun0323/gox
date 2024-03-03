@@ -90,6 +90,14 @@ const (
 `
 )
 
+func (st *Structure) GetStructType() string {
+	spans := strings.Split(strings.TrimSpace(strings.Split(st.Struct, "\n")[0]), " ")
+	if len(spans) <= 2 {
+		return ""
+	}
+	return strings.TrimSpace(spans[2])
+}
+
 func (st *Structure) GenMethod(pkg Package, methodName string) *Method {
 	receiver := "elem"
 	fields := st.getFields()

@@ -16,11 +16,11 @@ type Implementation struct {
 	Me                 map[string]*Method
 }
 
-func NewImplementation(pkg Package, receiver string, inter *Interface) *Implementation {
-	line := strings.Split(inter.Interface, "\n")
+func NewImplementation(pkg Package, receiver string, in *Interface) *Implementation {
+	line := strings.Split(in.Interface, "\n")
 	line = line[1 : len(line)-1]
 
-	domain := inter.InterfaceName
+	domain := in.InterfaceName
 	implementName := firstLowerCase(domain)
 
 	me := make(map[string]*Method, len(line))
@@ -51,6 +51,14 @@ func NewImplementation(pkg Package, receiver string, inter *Interface) *Implemen
 		),
 		Me: me,
 	}
+}
+
+func (in *Interface) GetStructType() string {
+	spans := strings.Split(strings.TrimSpace(strings.Split(in.Interface, "\n")[0]), " ")
+	if len(spans) <= 2 {
+		return ""
+	}
+	return strings.TrimSpace(spans[2])
 }
 
 type Method struct {

@@ -2,7 +2,7 @@ package repository
 
 import "context"
 
-//go:generate esc-gen-domain -f member.go
+//go:generate esc-domaingen -f member.go
 type MemberRepository interface {
 	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
 }

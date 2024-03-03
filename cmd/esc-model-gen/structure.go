@@ -89,7 +89,7 @@ const (
 	}
 `
 	_functionTemplate = `
-	func %s(%s %s) *%s {
+	func %s(%s *%s) *%s {
 		return &%s{
 			%s
 		}

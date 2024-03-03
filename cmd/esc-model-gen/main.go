@@ -186,7 +186,6 @@ func main() {
 	}
 
 	generator := Generator{
-		//_payload, cleanStringQuote(*_p), *_pr, false, *_p2e, *_p2r, *_p2u, *_pu, *_pt, *_pk, _payloadPathFn
 		Payload: NewElement(ElementParam{
 			pkg:            _payload,
 			filename:       cleanStringQuote(*_p),

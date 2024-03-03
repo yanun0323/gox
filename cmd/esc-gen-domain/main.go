@@ -83,7 +83,7 @@ func main() {
 	var generator *Generator
 	switch pkg {
 	case "usecase":
-		generator = NewGenerator(pkg, pkg, *_name, *_replace, &structure, _usecasePathFn)
+		generator = NewGenerator(pkg, "use", *_name, *_replace, &structure, _usecasePathFn)
 	case "repository":
 		generator = NewGenerator(pkg, "repo", *_name, *_replace, &structure, _repositoryPathFn)
 	default:

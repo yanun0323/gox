@@ -32,8 +32,8 @@ func cleanStringQuote(s string) string {
 	return strings.Trim(strings.Trim(s, "\""), "'")
 }
 
-func currentPackage() string {
-	return os.Getenv("GOPACKAGE")
+func currentPackage() Package {
+	return Package(os.Getenv("GOPACKAGE"))
 }
 
 func findInternalPath(dir string) (string, error) {

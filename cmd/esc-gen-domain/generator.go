@@ -10,20 +10,28 @@ import (
 
 type pathFunc func(internal, filename string) string
 
-var (
-	_usecase    = "usecase"
-	_repository = "repository"
+type Package string
 
+func (pkg Package) String() string {
+	return string(pkg)
+}
+
+const (
+	_usecase    Package = "usecase"
+	_repository Package = "repository"
+)
+
+var (
 	_usecasePathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, _usecase, filename)
+		return filepath.Join(internal, _usecase.String(), filename)
 	}
 	_repositoryPathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, _repository, filename)
+		return filepath.Join(internal, _repository.String(), filename)
 	}
 )
 
 type Generator struct {
-	pkg      string
+	pkg      Package
 	receiver string
 	replace  bool
 	imp      *Implementation
@@ -31,7 +39,7 @@ type Generator struct {
 	pathFunc pathFunc
 }
 
-func NewGenerator(pkg, receiver, filename string, replace bool, inter *Interface, pf pathFunc) *Generator {
+func NewGenerator(pkg Package, receiver, filename string, replace bool, inter *Interface, pf pathFunc) *Generator {
 	return &Generator{
 		pkg:      pkg,
 		receiver: receiver,
@@ -62,7 +70,7 @@ func (g *Generator) Save(internalDir string) error {
 	}
 
 	/* load file */
-	parser := NewFileUpdater(g.pkg, g.pathFunc(internalDir, g.filename))
+	parser := NewFileUpdater(g.pkg.String(), g.pathFunc(internalDir, g.filename))
 	file, err := parser.Parse()
 	if err != nil {
 		return errors.Errorf("parse file (%s), err: %+v", parser.path, err)

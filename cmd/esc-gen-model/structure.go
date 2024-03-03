@@ -90,7 +90,7 @@ const (
 `
 )
 
-func (st *Structure) GenMethod(pkg, methodName string) *Method {
+func (st *Structure) GenMethod(pkg Package, methodName string) *Method {
 	receiver := "elem"
 	fields := st.getFields()
 	setters := make([]string, 0, len(fields))
@@ -101,8 +101,8 @@ func (st *Structure) GenMethod(pkg, methodName string) *Method {
 	return &Method{
 		MethodName: methodName,
 		Method: fmt.Sprintf(_methodTemplate,
-			receiver, st.StructName, methodName, pkg+"."+st.StructName,
-			pkg+"."+st.StructName,
+			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName,
+			pkg.String()+"."+st.StructName,
 			strings.Join(setters, "\n"),
 		),
 	}

@@ -9,23 +9,31 @@ import (
 
 type pathFunc func(internal, filename string) string
 
-var (
-	_usecase    = "usecase"
-	_repository = "repository"
-	_entity     = "entity"
-	_payload    = "payload"
+type Package string
 
+func (k Package) String() string {
+	return string(k)
+}
+
+const (
+	_usecase    Package = "usecase"
+	_repository Package = "repository"
+	_entity     Package = "entity"
+	_payload    Package = "payload"
+)
+
+var (
 	_payloadPathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, "delivery", "http", _payload, filename)
+		return filepath.Join(internal, "delivery", "http", _payload.String(), filename)
 	}
 	_entityPathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, "domain", _entity, filename)
+		return filepath.Join(internal, "domain", _entity.String(), filename)
 	}
 	_usecasePathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, "domain", _usecase, filename)
+		return filepath.Join(internal, "domain", _usecase.String(), filename)
 	}
 	_repositoryPathFn pathFunc = func(internal, filename string) string {
-		return filepath.Join(internal, "domain", _repository, filename)
+		return filepath.Join(internal, "domain", _repository.String(), filename)
 	}
 )
 
@@ -105,7 +113,7 @@ type Element struct {
 	unix, timestamp                              bool
 	keepTag                                      bool
 	filename                                     string
-	pkg                                          string
+	pkg                                          Package
 	pathFunc                                     pathFunc
 }
 
@@ -114,7 +122,7 @@ type Method struct {
 	Method     string
 }
 
-func NewElement(pkg, filename string, replace, toPayload, toEntity, toRepo, toUseCase, unix, timestamp, keepTag bool, pf pathFunc) *Element {
+func NewElement(pkg Package, filename string, replace, toPayload, toEntity, toRepo, toUseCase, unix, timestamp, keepTag bool, pf pathFunc) *Element {
 	if len(filename) == 0 && pkg != currentPackage() {
 		return nil
 	}
@@ -198,7 +206,7 @@ func (elem *Element) Save(internalDir string) error {
 	isSourceStruct := currentPackage() == elem.pkg
 
 	/* load file */
-	parser := NewFileUpdater(elem.pkg, elem.pathFunc(internalDir, elem.filename))
+	parser := NewFileUpdater(elem.pkg.String(), elem.pathFunc(internalDir, elem.filename))
 	file, err := parser.Parse()
 	if err != nil {
 		return errors.Errorf("parse file (%s), err: %+v", parser.path, err)
@@ -220,7 +228,7 @@ func (elem *Element) Save(internalDir string) error {
 			if node.MethodReceiver != elem.st.StructName {
 				continue
 			}
-			
+
 			/* find match method */
 			if elem.me[node.Name] == nil {
 				continue

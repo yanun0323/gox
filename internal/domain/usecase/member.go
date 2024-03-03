@@ -5,7 +5,7 @@ import (
 	"gox/internal/domain/repository"
 )
 
-//go:generate esc-domaingen -f member.go
+//go:generate esc-domain-gen -f member.go
 type MemberUseCase interface {
 	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
 }

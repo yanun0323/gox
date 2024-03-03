@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const _commandName = "esc-domaingen"
+const _commandName = "esc-domain-gen"
 
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")

@@ -6,7 +6,11 @@ open:
 ls:
 	ls ${HOME}/go/bin
 
-test:
+run:
+	make install &&\
+	go generate ./...
+
+run.debug:
 	make install &&\
 	go generate -v ./...
 

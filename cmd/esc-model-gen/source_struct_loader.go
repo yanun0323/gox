@@ -61,22 +61,41 @@ func (SourceStructLoader) parsingFile(dir string) (*token.FileSet, *token.File, 
 	return tfs, tf, f
 }
 
-func (SourceStructLoader) getTargetStruct(tf *token.File, f *ast.File) (*ast.GenDecl, error) {
-	pos, err := strconv.Atoi(os.Getenv("GOLINE"))
+func (loader SourceStructLoader) getTargetStruct(tf *token.File, f *ast.File) (*ast.GenDecl, error) {
+	line, err := strconv.Atoi(os.Getenv("GOLINE"))
 	requireNoError(err, "get file line")
 
-	targetPos := tf.LineStart(pos + 1)
-	for _, d := range f.Decls {
-		g, ok := d.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
+	for ; line < tf.LineCount(); line++ {
+		targetPos := tf.LineStart(line)
+		for _, d := range f.Decls {
+			g, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
 
-		if g.TokPos == targetPos {
-			return g, nil
+			if g.TokPos == targetPos {
+				return g, nil
+			}
 		}
 	}
+
 	return nil, errors.New("missing target struct")
+}
+
+func (SourceStructLoader) isComment(tf *token.File, f *ast.File, line int) bool {
+	l := line
+	targetPos := tf.LineStart(l)
+	for l < tf.LineCount() {
+		for _, c := range f.Comments {
+			println("comment pos:", c.Pos(), "target pos:", targetPos)
+			if c.Pos() == targetPos {
+				return true
+			}
+		}
+		l += 1
+		targetPos = tf.LineStart(l)
+	}
+	return false
 }
 
 func (pt SourceStructLoader) handleStruct(st *ast.GenDecl) (string, *ast.GenDecl, error) {

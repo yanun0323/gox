@@ -13,6 +13,7 @@ type UpdateEmailReq struct {
 }
 
 //go:generate esc-model-gen -replace -p2u -p2e -e member.go -u member.go -uu
+//go:generate inspector -foo=bar -arg2 -arg3=123 -o ./internal/entity
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

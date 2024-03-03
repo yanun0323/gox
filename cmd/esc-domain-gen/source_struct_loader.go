@@ -62,20 +62,23 @@ func (SourceStructLoader) parsingFile(dir string) (*token.FileSet, *token.File, 
 }
 
 func (SourceStructLoader) getTargetInterface(tf *token.File, f *ast.File) (*ast.GenDecl, error) {
-	pos, err := strconv.Atoi(os.Getenv("GOLINE"))
+	line, err := strconv.Atoi(os.Getenv("GOLINE"))
 	requireNoError(err, "get file line")
 
-	targetPos := tf.LineStart(pos + 1)
-	for _, d := range f.Decls {
-		g, ok := d.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
+	for ; line < tf.LineCount(); line++ {
+		targetPos := tf.LineStart(line)
+		for _, d := range f.Decls {
+			g, ok := d.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
 
-		if g.TokPos == targetPos {
-			return g, nil
+			if g.TokPos == targetPos {
+				return g, nil
+			}
 		}
 	}
+
 	return nil, errors.New("missing target interface")
 }
 

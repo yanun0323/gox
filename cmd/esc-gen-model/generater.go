@@ -282,7 +282,9 @@ func (elem *Element) Save(internalDir string) error {
 		return errors.Errorf("save file (%s), err: %+v", parser.path, err)
 	}
 
-	log.Default().Printf("save file (%s) succeed", parser.path)
+	if *_debug {
+		log.Default().Printf("save file (%s) succeed", parser.path)
+	}
 
 	return nil
 }

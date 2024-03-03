@@ -2,8 +2,8 @@ package repository
 
 import "context"
 
-//go:generate esc-gen-domain -v -f member.go
-type MemberUsecase interface {
+//go:generate esc-gen-domain -f member.go
+type MemberRepository interface {
 	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
 }
 

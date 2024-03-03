@@ -160,8 +160,9 @@ func main() {
 		Repository: NewElement(_repository, cleanStringQuote(*_r), *_rr, *_r2p, *_r2e, false, *_r2u, *_ru, *_rt, *_rk, _repositoryPathFn),
 		Usecase:    NewElement(_usecase, cleanStringQuote(*_u), *_ur, *_u2p, *_u2e, *_u2r, false, *_uu, *_ut, *_uk, _usecasePathFn),
 	}
+
 	filename := os.Getenv("GOFILE")
-	println("filename", filename)
+
 	generator.ProvideSourceStructure(structure, filename)
 	generator.Gen()
 	if *_debug {

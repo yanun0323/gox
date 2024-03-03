@@ -106,15 +106,11 @@ func (g *Generator) Save(internalDir string) error {
 }
 
 type Element struct {
-	st                                           *Structure
-	me                                           map[string]*Method
-	replace                                      bool
-	toPayload, toEntity, toRepository, toUseCase bool
-	unix, timestamp                              bool
-	keepTag                                      bool
-	filename                                     string
-	pkg                                          Package
-	pathFunc                                     pathFunc
+	st *Structure
+	me map[string]*Method
+	fn map[string]*Function
+
+	ElementParam
 }
 
 type Method struct {
@@ -122,24 +118,32 @@ type Method struct {
 	Method     string
 }
 
-func NewElement(pkg Package, filename string, replace, toPayload, toEntity, toRepo, toUseCase, unix, timestamp, keepTag bool, pf pathFunc) *Element {
-	if len(filename) == 0 && pkg != currentPackage() {
+type Function struct {
+	FunctionName string
+	Function     string
+}
+
+type ElementParam struct {
+	pkg                                                  Package
+	filename                                             string
+	replace                                              bool
+	toPayload, toEntity, toRepository, toUseCase         bool
+	fromPayload, fromEntity, fromRepository, fromUseCase bool
+	unix                                                 bool
+	timestamp                                            bool
+	keepTag                                              bool
+	pathFunc                                             pathFunc
+}
+
+func NewElement(param ElementParam) *Element {
+	if len(param.filename) == 0 && param.pkg != currentPackage() {
 		return nil
 	}
 
 	return &Element{
 		me:           make(map[string]*Method, 4),
-		replace:      replace,
-		toPayload:    toPayload,
-		toEntity:     toEntity,
-		toRepository: toRepo,
-		toUseCase:    toUseCase,
-		unix:         unix,
-		timestamp:    timestamp,
-		keepTag:      keepTag,
-		filename:     filename,
-		pkg:          pkg,
-		pathFunc:     pf,
+		fn:           make(map[string]*Function, 4),
+		ElementParam: param,
 	}
 }
 
@@ -196,6 +200,26 @@ func (elem *Element) Gen(source *Structure) {
 		m := elem.st.GenMethod(_usecase, "ToUseCase")
 		elem.me[m.MethodName] = m
 	}
+
+	if elem.fromPayload {
+		f := elem.st.GenFunction(_payload, "FromPayload")
+		elem.fn[f.FunctionName] = f
+	}
+
+	if elem.fromEntity {
+		f := elem.st.GenFunction(_entity, "FromEntity")
+		elem.fn[f.FunctionName] = f
+	}
+
+	if elem.fromRepository {
+		f := elem.st.GenFunction(_repository, "FromRepository")
+		elem.fn[f.FunctionName] = f
+	}
+
+	if elem.fromUseCase {
+		f := elem.st.GenFunction(_usecase, "FromUseCase")
+		elem.fn[f.FunctionName] = f
+	}
 }
 
 func (elem *Element) Save(internalDir string) error {
@@ -239,6 +263,16 @@ func (elem *Element) Save(internalDir string) error {
 			}
 
 			delete(elem.me, node.Name)
+		case ntFunc:
+			/* find match function */
+			if elem.fn[node.Name] == nil {
+				continue
+			}
+			if elem.replace {
+				node.Value = elem.fn[node.Name].Function
+			}
+
+			delete(elem.fn, node.Name)
 		}
 	}
 
@@ -257,6 +291,13 @@ func (elem *Element) Save(internalDir string) error {
 			}
 
 			newFile.Nodes = append(newFile.Nodes, node)
+
+			for _, fn := range elem.fn {
+				newFile.Nodes = append(newFile.Nodes, &FileNode{
+					Value: fn.Function,
+				})
+			}
+
 			for _, me := range elem.me {
 				newFile.Nodes = append(newFile.Nodes, &FileNode{
 					Value: me.Method,
@@ -270,6 +311,11 @@ func (elem *Element) Save(internalDir string) error {
 
 	if needInsertStruct {
 		newFile.Nodes = append(newFile.Nodes, &FileNode{Value: elem.st.Struct})
+		for _, fn := range elem.fn {
+			newFile.Nodes = append(newFile.Nodes, &FileNode{
+				Value: fn.Function,
+			})
+		}
 		for _, me := range elem.me {
 			newFile.Nodes = append(newFile.Nodes, &FileNode{
 				Value: me.Method,

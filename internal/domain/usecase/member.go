@@ -38,5 +38,18 @@ type UpdatePhoneReq struct {
 	UpdateTime  int64
 	CreateAt    int64
 	UpdateAt    int64
-	repository.UpdatePhoneEntity
+	UpdatePhoneEntity
+}
+
+func NewUpdatePhoneReqFromRepository(elem repository.UpdatePhoneReq) *UpdatePhoneReq {
+	return &UpdatePhoneReq{
+		Phone:             elem.Phone,
+		AreaCode:          elem.AreaCode,
+		CaptchaCode:       elem.CaptchaCode,
+		CreateTime:        elem.CreateTime,
+		UpdateTime:        elem.UpdateTime,
+		CreateAt:          elem.CreateAt,
+		UpdateAt:          elem.UpdateAt,
+		UpdatePhoneEntity: elem.UpdatePhoneEntity,
+	}
 }

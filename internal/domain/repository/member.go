@@ -2,7 +2,7 @@ package repository
 
 import "context"
 
-//go:generate esc-domain-gen -f member.go
+//go:generate esc-domain-gen -f=member.go
 type MemberRepository interface {
 	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
 }
@@ -27,6 +27,7 @@ type UpdatePhoneResp struct {
 	UpdateAt    string `json:"update_at"`
 }
 
+//go:generate esc-model-gen -u=member.go -ufr -ur
 type UpdatePhoneReq struct {
 	Phone       string
 	AreaCode    string

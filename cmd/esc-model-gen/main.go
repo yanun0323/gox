@@ -23,6 +23,9 @@ var (
 	_p2e = flag.Bool("p2e", false, "payload to entity: generate payload method 'ToEntity'")
 	_p2r = flag.Bool("p2r", false, "payload to repository: generate payload method 'ToRepository'")
 	_p2u = flag.Bool("p2u", false, "payload to usecase: generate payload method 'ToUseCase'")
+	_pfe = flag.Bool("pfe", false, "payload from entity: generate func 'NewXXXFromEntity'")
+	_pfr = flag.Bool("pfr", false, "payload from repository: generate func 'NewXXXFromRepository'")
+	_pfu = flag.Bool("pfu", false, "payload from usecase: generate func 'NewXXXFromUseCase'")
 	_pu  = flag.Bool("pu", false, "set fields which's field name has suffix 'Time' from 'string' to 'int64'")
 	_pt  = flag.Bool("pt", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
@@ -32,6 +35,9 @@ var (
 	_e2p = flag.Bool("e2p", false, "entity to payload: generate entity method 'ToPayload'")
 	_e2r = flag.Bool("e2r", false, "entity to repository: generate entity method 'ToRepository'")
 	_e2u = flag.Bool("e2u", false, "entity to usecase: generate entity method 'ToUseCase'")
+	_efp = flag.Bool("efp", false, "entity from payload: generate func 'NewXXXFromPayload'")
+	_efr = flag.Bool("efr", false, "entity from repository: generate func 'NewXXXFromRepository'")
+	_efu = flag.Bool("efu", false, "entity from usecase: generate func 'NewXXXFromUseCase'")
 	_eu  = flag.Bool("eu", false, "set fields which's field name has suffix 'Time' from 'string' to 'int64'")
 	_et  = flag.Bool("et", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
@@ -41,6 +47,9 @@ var (
 	_r2p = flag.Bool("r2p", false, "repository to payload: generate repository method 'ToPayload'")
 	_r2e = flag.Bool("r2e", false, "repository to entity: generate repository method 'ToEntity'")
 	_r2u = flag.Bool("r2u", false, "repository to usecase: generate repository method 'ToUseCase'")
+	_rfp = flag.Bool("rfp", false, "repository from payload: generate func 'NewXXXFromPayload'")
+	_rfe = flag.Bool("rfe", false, "repository from entity: generate func 'NewXXXFromEntity'")
+	_rfu = flag.Bool("rfu", false, "repository from usecase: generate func 'NewXXXFromUseCase'")
 	_ru  = flag.Bool("ru", false, "set fields which's field name has suffix 'Time' from 'string' to 'int64'")
 	_rt  = flag.Bool("rt", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
@@ -50,6 +59,9 @@ var (
 	_u2p = flag.Bool("u2p", false, "usecase to payload: generate usecase method 'ToPayload'")
 	_u2e = flag.Bool("u2e", false, "usecase to entity: generate usecase method 'ToEntity'")
 	_u2r = flag.Bool("u2r", false, "usecase to repository: generate usecase method 'ToRepository'")
+	_ufp = flag.Bool("ufp", false, "usecase from payload: generate func 'NewXXXFromPayload'")
+	_ufe = flag.Bool("ufe", false, "usecase from entity: generate func 'NewXXXFromEntity'")
+	_ufr = flag.Bool("ufr", false, "usecase from repository: generate func 'NewXXXFromRepository'")
 	_uu  = flag.Bool("uu", false, "set fields which's field name has suffix 'Time' from 'string' to 'int64'")
 	_ut  = flag.Bool("ut", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 )
@@ -76,21 +88,35 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}t\t將目標 Time 結尾的 int64 欄位轉換為 string\t-pt\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t-{$}2{$}\t指定目標生成 ToUseCase/ToEntity/ToRepository Method \t-p2u (payload 生成 ToUseCase 的方法)\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}2{$}\t指定目標生成 ToPayload/ToUseCase/ToEntity/ToRepository Method \t-p2u (payload 生成 ToUseCase Method)\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}f{$}\t指定目標生成 FromPayload/FromUseCase/FromEntity/FromRepository Function \t-pfu (payload package 生成 NewFromUseCase Function)\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t範例:\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p=member.go -p2u -pu\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t生成 payload, 生成在 member.go 內, 生成 ToUseCase 的方法, 將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\t\t-p=member.go\t生成程式碼在 payload member.go 檔案內\n")
+	fmt.Fprintf(os.Stderr, "\t\t-p2u\t\t生成 ToUseCase Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-pu\t\t將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -u=member.go -ufr\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t\t-u=member.go\t生成程式碼在 usecase member.go 檔案內\n")
+	fmt.Fprintf(os.Stderr, "\t\t-ufr\t\t生成 NewFromUsecase Function\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p2e -p2u -e=member.go -e2u -eu -u=member_use.go -uu\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t在 payload 生成 ToEntity & ToUseCase 的方法\n")
-	fmt.Fprintf(os.Stderr, "\t生成 entity, 生成在 member.go 內, 生成 ToUseCase 的方法, 將 time 結尾的 string 欄位轉換為 int64\n")
-	fmt.Fprintf(os.Stderr, "\t生成 usecase, 生成在 member_use.go 內, 將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\t\t-p2e\t\t在 payload 生成 ToEntity Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-p2u\t\t在 payload 生成 ToUseCase Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-e=member.go\t生成程式碼在 entity member.go 檔案內\n")
+	fmt.Fprintf(os.Stderr, "\t\t-e2u\t\t在 entity 生成 ToUseCase Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-eu\t\t將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\t\t-u=use.go\t生成程式碼在 usecase  use.go 檔案內\n")
+	fmt.Fprintf(os.Stderr, "\t\t-uu\t\t將 time 結尾的 string 欄位轉換為 int64\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
@@ -160,10 +186,75 @@ func main() {
 	}
 
 	generator := Generator{
-		Payload:    NewElement(_payload, cleanStringQuote(*_p), *_pr, false, *_p2e, *_p2r, *_p2u, *_pu, *_pt, *_pk, _payloadPathFn),
-		Entity:     NewElement(_entity, cleanStringQuote(*_e), *_er, *_e2p, false, *_e2r, *_e2u, *_eu, *_et, *_ek, _entityPathFn),
-		Repository: NewElement(_repository, cleanStringQuote(*_r), *_rr, *_r2p, *_r2e, false, *_r2u, *_ru, *_rt, *_rk, _repositoryPathFn),
-		Usecase:    NewElement(_usecase, cleanStringQuote(*_u), *_ur, *_u2p, *_u2e, *_u2r, false, *_uu, *_ut, *_uk, _usecasePathFn),
+		//_payload, cleanStringQuote(*_p), *_pr, false, *_p2e, *_p2r, *_p2u, *_pu, *_pt, *_pk, _payloadPathFn
+		Payload: NewElement(ElementParam{
+			pkg:            _payload,
+			filename:       cleanStringQuote(*_p),
+			replace:        *_pr,
+			toPayload:      false,
+			toEntity:       *_p2e,
+			toRepository:   *_p2r,
+			toUseCase:      *_p2u,
+			fromPayload:    false,
+			fromEntity:     *_pfe,
+			fromRepository: *_pfr,
+			fromUseCase:    *_pfu,
+			unix:           *_pu,
+			timestamp:      *_pt,
+			keepTag:        *_pk,
+			pathFunc:       _payloadPathFn,
+		}),
+		Entity: NewElement(ElementParam{
+			pkg:            _entity,
+			filename:       cleanStringQuote(*_e),
+			replace:        *_er,
+			toPayload:      *_e2p,
+			toEntity:       false,
+			toRepository:   *_e2r,
+			toUseCase:      *_e2u,
+			fromPayload:    *_efp,
+			fromEntity:     false,
+			fromRepository: *_efr,
+			fromUseCase:    *_efu,
+			unix:           *_eu,
+			timestamp:      *_et,
+			keepTag:        *_ek,
+			pathFunc:       _entityPathFn,
+		}),
+		Repository: NewElement(ElementParam{
+			pkg:            _repository,
+			filename:       cleanStringQuote(*_r),
+			replace:        *_rr,
+			toPayload:      *_r2p,
+			toEntity:       *_r2e,
+			toRepository:   false,
+			toUseCase:      *_r2u,
+			fromPayload:    *_rfp,
+			fromEntity:     *_rfe,
+			fromRepository: false,
+			fromUseCase:    *_rfu,
+			unix:           *_ru,
+			timestamp:      *_rt,
+			keepTag:        *_rk,
+			pathFunc:       _repositoryPathFn,
+		}),
+		Usecase: NewElement(ElementParam{
+			pkg:            _usecase,
+			filename:       cleanStringQuote(*_u),
+			replace:        *_ur,
+			toPayload:      *_u2p,
+			toEntity:       *_u2e,
+			toRepository:   *_u2r,
+			toUseCase:      false,
+			fromPayload:    *_ufp,
+			fromEntity:     *_ufe,
+			fromRepository: *_ufr,
+			fromUseCase:    false,
+			unix:           *_uu,
+			timestamp:      *_ut,
+			keepTag:        *_uk,
+			pathFunc:       _usecasePathFn,
+		}),
 	}
 
 	filename := os.Getenv("GOFILE")

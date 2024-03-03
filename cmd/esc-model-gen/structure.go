@@ -88,6 +88,13 @@ const (
 		}
 	}
 `
+	_functionTemplate = `
+	func %s(%s %s) *%s {
+		return &%s{
+			%s
+		}
+	}
+`
 )
 
 func (st *Structure) GetStructType() string {
@@ -111,6 +118,26 @@ func (st *Structure) GenMethod(pkg Package, methodName string) *Method {
 		Method: fmt.Sprintf(_methodTemplate,
 			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName,
 			pkg.String()+"."+st.StructName,
+			strings.Join(setters, "\n"),
+		),
+	}
+}
+
+func (st *Structure) GenFunction(pkg Package, functionNameSuffix string) *Function {
+	receiver := "elem"
+	fields := st.getFields()
+	setters := make([]string, 0, len(fields))
+	for _, field := range fields {
+		set := field + ":" + receiver + "." + field + ","
+		setters = append(setters, set)
+	}
+
+	functionName := fmt.Sprintf("New%s%s", st.StructName, functionNameSuffix)
+	return &Function{
+		FunctionName: functionName,
+		Function: fmt.Sprintf(_functionTemplate,
+			functionName, receiver, pkg.String()+"."+st.StructName, st.StructName,
+			st.StructName,
 			strings.Join(setters, "\n"),
 		),
 	}

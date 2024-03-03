@@ -31,7 +31,8 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -f=member.go -replace\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t到 usecase/repository member.go 生成程式碼, 強制取代目標重複的 Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-f=member.go\t生成程式碼在 usecase/repository member.go 檔案內\n")
+	fmt.Fprintf(os.Stderr, "\t\t-replace\t強制取代目標重複的 Method\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }
 

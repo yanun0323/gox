@@ -88,7 +88,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}t\t將目標 Time 結尾的 int64 欄位轉換為 string\t-pt\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t-{$}2{$}\t指定目標生成 ToPayload/ToUseCase/ToEntity/ToRepository Method \t\t-p2u (payload 生成 ToUseCase Method)\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}2{$}\t指定目標生成 ToPayload/ToUseCase/ToEntity/ToRepository Method \t\t\t-p2u (payload 生成 ToUseCase Method)\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}f{$}\t指定目標生成 FromPayload/FromUseCase/FromEntity/FromRepository Function \t-pfu (payload package 生成 NewFromUseCase Function)\n")
 	fmt.Fprintf(os.Stderr, "\n")

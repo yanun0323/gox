@@ -24,15 +24,15 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置: usecase/repository\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
-	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標重複的 Method\n")
-	fmt.Fprintf(os.Stderr, "\t-f\t\t目標檔案名稱\t\t-f=member_usecase.go\n")
+	fmt.Fprintf(os.Stderr, "\t-f\t\t目標檔案名稱\t\t\t-f=member_usecase.go\n")
+	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Method\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t範例:\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -f=member.go -replace\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t\t-f=member.go\t生成程式碼在 usecase/repository member.go 檔案內\n")
-	fmt.Fprintf(os.Stderr, "\t\t-replace\t強制取代目標重複的 Method\n")
+	fmt.Fprintf(os.Stderr, "\t\t-replace\t強制取代目標相同名稱的 Method\n")
 	fmt.Fprintf(os.Stderr, "\n")
 }
 

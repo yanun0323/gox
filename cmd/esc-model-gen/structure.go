@@ -10,8 +10,9 @@ type Structure struct {
 	Struct     string
 }
 
-func NewStructureFrom(st *Structure, unix, timestamp, keepTag bool) *Structure {
+func NewStructureFrom(pkg Package, st *Structure, unix, timestamp, keepTag bool) *Structure {
 	lines := strings.Split(st.Struct, "\n")
+
 	rows := lines[1 : len(lines)-1]
 	newLines := make([]string, 0, len(lines)+1)
 
@@ -81,15 +82,13 @@ func isTimeField(field string) bool {
 }
 
 const (
-	_methodTemplate = `
-	func (%s *%s) %s() *%s {
+	_methodTemplate = `func (%s *%s) %s() *%s { /* generate from %s  */
 		return &%s{
 			%s
 		}
 	}
 `
-	_functionTemplate = `
-	func %s(%s *%s) *%s {
+	_functionTemplate = `func %s(%s *%s) *%s { /* generate from %s  */
 		return &%s{
 			%s
 		}
@@ -116,7 +115,7 @@ func (st *Structure) GenMethod(pkg Package, methodName string) *Method {
 	return &Method{
 		MethodName: methodName,
 		Method: fmt.Sprintf(_methodTemplate,
-			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName,
+			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName, pkg.String(),
 			pkg.String()+"."+st.StructName,
 			strings.Join(setters, "\n"),
 		),
@@ -136,7 +135,7 @@ func (st *Structure) GenFunction(pkg Package, functionNameSuffix string) *Functi
 	return &Function{
 		FunctionName: functionName,
 		Function: fmt.Sprintf(_functionTemplate,
-			functionName, receiver, pkg.String()+"."+st.StructName, st.StructName,
+			functionName, receiver, pkg.String()+"."+st.StructName, st.StructName, pkg.String(),
 			st.StructName,
 			strings.Join(setters, "\n"),
 		),

@@ -12,10 +12,11 @@ import (
 const _commandName = "esc-model-gen"
 
 var (
-	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
-	_debug   = flag.Bool("v", false, "show debug information")
-	_help    = flag.Bool("h", false, "show command help")
-	_helpAll = flag.Bool("help", false, "show command help detail")
+	_replace   = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
+	_debug     = flag.Bool("v", false, "show debug information")
+	_help      = flag.Bool("h", false, "show command help")
+	_helpAll   = flag.Bool("help", false, "show command help detail")
+	_noComment = flag.Bool("nc", false, "do not generate comment")
 
 	_p   = flag.String("p", "", "file name to generate payload structure")
 	_pk  = flag.Bool("pk", false, "keep struct field tags")
@@ -75,8 +76,16 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-help\t顯示用法詳細資訊\n")
 	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-nc\t生成 Struct 及 Method 時, 不生成 Comment\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標現有的 Struct 及 Method (所有目標, 相當於 -pr -er -ur -rr)\n")
+	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t{$}\t代表要產的目標類型, 用以下字母替換:\n")
-	fmt.Fprintf(os.Stderr, "\t\tp=payload e=entity u=usecase r=repository\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "\t\tp = payload \n")
+	fmt.Fprintf(os.Stderr, "\t\te = entity\n")
+	fmt.Fprintf(os.Stderr, "\t\tu = usecase\n")
+	fmt.Fprintf(os.Stderr, "\t\tr = repository\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}\t目標檔名(不需要路徑)\t\t\t\t-p=member.go\n")
 	fmt.Fprintf(os.Stderr, "\n")
@@ -264,7 +273,7 @@ func main() {
 		generator.DebugPrint()
 	}
 
-	err = generator.Save(internalPath)
+	err = generator.Save(internalPath, *_noComment)
 	requireNoError(err, "save generated file")
 }
 

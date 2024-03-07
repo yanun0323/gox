@@ -32,7 +32,7 @@ func (p *FileUpdater) Parse() (*File, error) {
 	f, err := os.Open(p.path)
 	if errors.Is(err, os.ErrNotExist) {
 		file := &File{Nodes: []*FileNode{}}
-		file.Append("package "+p.pkg, ntOther)
+		file.Append("package "+p.pkg, ntOther, nil)
 		return file, nil
 	}
 
@@ -70,29 +70,65 @@ func (p *FileUpdater) Parse() (*File, error) {
 		return strings.Join(cache, "\n")
 	}
 
+	commentPrefix := ""
+	commentCache := []string{}
+
 	for i := 0; i < len(rows); i++ {
 		row := rows[i]
 		trimmed := strings.TrimSpace(row)
-		if strings.HasPrefix(trimmed, "type") {
-			if !strings.HasSuffix(trimmed, "{") {
-				file.Append(row, ntStruct)
+
+		switch commentPrefix {
+		case "//":
+			if strings.HasPrefix(trimmed, "//") {
+				commentCache = append(commentCache, trimmed)
 				continue
 			}
-			file.Append(findClose(&i), ntStruct)
+			commentPrefix = ""
+		case "/*":
+			commentCache = append(commentCache, trimmed)
+			if strings.HasPrefix(trimmed, "*/") {
+				commentPrefix = ""
+			}
+			continue
+		default:
+			if strings.HasPrefix(trimmed, "//") {
+				commentPrefix = "//"
+				commentCache = append(commentCache, trimmed)
+				continue
+			}
+
+			if strings.HasPrefix(trimmed, "/*") {
+				commentPrefix = "/*"
+				commentCache = append(commentCache, trimmed)
+				continue
+			}
+		}
+
+		if strings.HasPrefix(trimmed, "type") {
+			if !strings.HasSuffix(trimmed, "{") {
+				file.Append(row, ntStruct, commentCache)
+				commentCache = []string{}
+				continue
+			}
+			file.Append(findClose(&i), ntStruct, commentCache)
+			commentCache = []string{}
 			continue
 		}
 
 		if strings.HasPrefix(row, "func (") {
-			file.Append(findClose(&i), ntMethod)
+			file.Append(findClose(&i), ntMethod, commentCache)
+			commentCache = []string{}
 			continue
 		}
 
 		if strings.HasPrefix(row, "func") {
-			file.Append(findClose(&i), ntFunc)
+			file.Append(findClose(&i), ntFunc, commentCache)
+			commentCache = []string{}
 			continue
 		}
 
-		file.Append(row, ntOther)
+		file.Append(row, ntOther, commentCache)
+		commentCache = []string{}
 	}
 
 	return file, nil
@@ -141,7 +177,7 @@ type File struct {
 	Nodes []*FileNode
 }
 
-func (f *File) Append(val string, t NodeType) {
+func (f *File) Append(val string, t NodeType, comment []string) {
 	name := ""
 	methodReceiver := ""
 	switch t {
@@ -165,6 +201,7 @@ func (f *File) Append(val string, t NodeType) {
 		Value:          val,
 		Name:           name,
 		MethodReceiver: methodReceiver,
+		Comment:        strings.Join(comment, "\n"),
 		Type:           t,
 	}
 
@@ -196,7 +233,12 @@ func (*File) findMethodReceiver(row string) string {
 func (f *File) ToString() string {
 	cache := make([]string, 0, len(f.Nodes))
 	for _, n := range f.Nodes {
-		cache = append(cache, n.Value)
+		if len(n.Comment) == 0 {
+			cache = append(cache, n.Value)
+			continue
+		}
+
+		cache = append(cache, n.Comment+"\n"+n.Value)
 	}
 	return strings.Join(cache, "\n")
 }
@@ -205,19 +247,29 @@ type FileNode struct {
 	Value          string
 	Name           string
 	MethodReceiver string
-	Type           NodeType /*
-		0=other
-		1=struct
-		2=method
-		3=function
-	*/
+	Comment        string
+	Type           NodeType
 }
 
+func (n *FileNode) AddComment(comment string) {
+	if len(strings.TrimSpace(n.Comment)) == 0 {
+		n.Comment = comment
+		return
+	}
+	n.Comment = comment + "\n" + n.Comment
+}
+
+/*
+0=other
+1=struct
+2=method
+3=function
+*/
 type NodeType int
 
 const (
-	ntOther  NodeType = 0
-	ntStruct NodeType = 1
-	ntMethod NodeType = 2
-	ntFunc   NodeType = 3
+	ntOther NodeType = iota
+	ntStruct
+	ntMethod
+	ntFunc
 )

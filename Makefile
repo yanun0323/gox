@@ -20,6 +20,11 @@ help:
 	esc-domain-gen -h
 
 install:
+	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/inspector &&\
+	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/esc-model-gen &&\
+	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/esc-domain-gen
+
+install.curdir:
 	go install ${CURDIR}/cmd/inspector &&\
 	go install ${CURDIR}/cmd/esc-model-gen &&\
 	go install ${CURDIR}/cmd/esc-domain-gen

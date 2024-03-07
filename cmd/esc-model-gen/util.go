@@ -49,3 +49,12 @@ func findInternalPath(dir string) (string, error) {
 
 	return internal, nil
 }
+
+func findProjectPath(dir string) (string, error) {
+	spans := strings.Split(dir, "internal")
+	if len(spans) == 1 {
+		return "", errors.New("missing internal folder in working path")
+	}
+
+	return spans[0], nil
+}

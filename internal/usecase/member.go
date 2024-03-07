@@ -471,7 +471,3 @@ func (use *memberUseCase) SetLanguage(ctx context.Context, uid string, language 
 
 	return nil
 }
-
-func (usecase *memberUseCase) Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error) {
-	// TODO: implement me
-}

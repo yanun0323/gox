@@ -5,8 +5,6 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type pathFunc func(internal, filename string) string
@@ -89,19 +87,19 @@ func (g *Generator) Gen() {
 
 func (g *Generator) Save(internalDir string, noComment bool) error {
 	if err := g.Payload.Save(internalDir, noComment); err != nil {
-		return errors.Errorf("save payload, err: %+v", err)
+		return fmt.Errorf("save payload, err: %+v", err)
 	}
 
 	if err := g.Entity.Save(internalDir, noComment); err != nil {
-		return errors.Errorf("save entity, err: %+v", err)
+		return fmt.Errorf("save entity, err: %+v", err)
 	}
 
 	if err := g.Repository.Save(internalDir, noComment); err != nil {
-		return errors.Errorf("save repository, err: %+v", err)
+		return fmt.Errorf("save repository, err: %+v", err)
 	}
 
 	if err := g.Usecase.Save(internalDir, noComment); err != nil {
-		return errors.Errorf("save usecase, err: %+v", err)
+		return fmt.Errorf("save usecase, err: %+v", err)
 	}
 
 	return nil
@@ -133,7 +131,7 @@ type ElementParam struct {
 	fromPayload, fromEntity, fromRepository, fromUseCase bool
 	unix                                                 bool
 	timestamp                                            bool
-	keepTag                                              bool
+	genJson                                              bool
 	pathFunc                                             pathFunc
 }
 
@@ -168,7 +166,7 @@ func (elem *Element) DebugPrint() {
 	println("\ttoUseCase:", elem.toUseCase)
 	println("\tunix:", elem.unix)
 	println("\ttimestamp:", elem.timestamp)
-	println("\tkeepTag:", elem.keepTag)
+	println("\tgenJson:", elem.genJson)
 	println("\tfilename:", elem.filename)
 	println("\tpkg:", elem.pkg)
 	println()
@@ -180,7 +178,7 @@ func (elem *Element) Gen(source *Structure) {
 	}
 
 	if elem.st == nil {
-		elem.st = NewStructureFrom(elem.pkg, source, elem.unix, elem.timestamp, elem.keepTag)
+		elem.st = NewStructureFrom(elem.pkg, source, elem.unix, elem.timestamp, elem.genJson)
 	}
 
 	if elem.toPayload {
@@ -242,7 +240,7 @@ func (elem *Element) Save(internalDir string, noComment bool) error {
 	parser := NewFileUpdater(elem.pkg.String(), elem.pathFunc(internalDir, elem.filename))
 	file, err := parser.Parse()
 	if err != nil {
-		return errors.Errorf("parse file (%s), err: %+v", parser.path, err)
+		return fmt.Errorf("parse file (%s), err: %+v", parser.path, err)
 	}
 	comment := ""
 
@@ -254,7 +252,7 @@ func (elem *Element) Save(internalDir string, noComment bool) error {
 			// REPLACE CAUTION!!`
 		}
 
-		source := elem.pkg.String() + "." + elem.st.StructName
+		source := currentPackage().String() + "." + elem.st.StructName
 		comment = fmt.Sprintf(_commentTemplate, source, replaceCaution)
 	}
 
@@ -266,9 +264,10 @@ func (elem *Element) Save(internalDir string, noComment bool) error {
 			if node.Name != elem.st.StructName {
 				continue
 			}
+
 			needInsertStruct = false
 
-			if strings.Contains(node.Comment, _commentKeyword) {
+			if strings.Contains(node.Comment, _commentKeyword) && !isSourceStruct {
 				node.Comment = comment
 			}
 
@@ -351,13 +350,18 @@ func (elem *Element) Save(internalDir string, noComment bool) error {
 	}
 
 	if needInsertStruct {
-		newFile.Nodes = append(newFile.Nodes, &FileNode{Value: elem.st.Struct})
+		newFile.Nodes = append(newFile.Nodes, &FileNode{
+			Value:   elem.st.Struct,
+			Comment: comment,
+		})
+
 		for _, fn := range elem.fn {
 			newFile.Nodes = append(newFile.Nodes, &FileNode{
 				Value:   fn.Function,
 				Comment: comment,
 			})
 		}
+
 		for _, me := range elem.me {
 			newFile.Nodes = append(newFile.Nodes, &FileNode{
 				Value:   me.Method,
@@ -368,7 +372,7 @@ func (elem *Element) Save(internalDir string, noComment bool) error {
 
 	/* save file */
 	if err := parser.SaveFile(newFile); err != nil {
-		return errors.Errorf("save file (%s), err: %+v", parser.path, err)
+		return fmt.Errorf("save file (%s), err: %+v", parser.path, err)
 	}
 
 	if *_debug {

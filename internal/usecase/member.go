@@ -33,7 +33,7 @@ type MemberUseCaseParam struct {
 	DB *gorm.DB `name:"dbM"`
 }
 
-type memberUseCase struct {
+type MemberUseCase struct {
 	memberRepo      repository.MemberRepository
 	userInfoRepo    repository.UserInfoRepository
 	loginLogRepo    repository.LoginLogRepository
@@ -47,7 +47,7 @@ type memberUseCase struct {
 }
 
 func NewMemberUseCase(param MemberUseCaseParam) usecase.MemberUseCase {
-	return &memberUseCase{
+	return &MemberUseCase{
 		memberRepo:      param.MemberRepo,
 		userInfoRepo:    param.UserInfoRepo,
 		loginLogRepo:    param.LoginLogRepo,
@@ -67,7 +67,7 @@ const (
 	defaultGenerateNicknameRetry = 5
 )
 
-func (use *memberUseCase) CreateGeneralMember(
+func (use *MemberUseCase) CreateGeneralMember(
 	ctx context.Context, param *usecase.CreateGeneralMemberParam,
 ) (*usecase.CreateGeneralMemberResp, error) {
 	if strings.ContainsAny(param.Password, " ") {
@@ -171,7 +171,7 @@ func (use *memberUseCase) CreateGeneralMember(
 	}, nil
 }
 
-func (use *memberUseCase) GetMemberByUID(ctx context.Context, uid string) (*usecase.GetMemberByUIDResp, error) {
+func (use *MemberUseCase) GetMemberByUID(ctx context.Context, uid string) (*usecase.GetMemberByUIDResp, error) {
 	entityUser, err := use.memberRepo.GetByUID(ctx, uid)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -218,7 +218,7 @@ func (use *memberUseCase) GetMemberByUID(ctx context.Context, uid string) (*usec
 	}, nil
 }
 
-func (use *memberUseCase) GetMemberByEmail(ctx context.Context, email string) (*usecase.GetMemberByEmailResp, error) {
+func (use *MemberUseCase) GetMemberByEmail(ctx context.Context, email string) (*usecase.GetMemberByEmailResp, error) {
 	entityUser, err := use.memberRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -233,7 +233,7 @@ func (use *memberUseCase) GetMemberByEmail(ctx context.Context, email string) (*
 	}, nil
 }
 
-func (use *memberUseCase) ListMembersByQuery(
+func (use *MemberUseCase) ListMembersByQuery(
 	ctx context.Context, param *usecase.ListMembersByQueryParam,
 ) (*usecase.ListMembersByQueryResp, error) {
 	repoParam := &repository.ListMembersParam{
@@ -296,7 +296,7 @@ func (use *memberUseCase) ListMembersByQuery(
 	return resp, nil
 }
 
-func (use *memberUseCase) ResetPasswordByEmail(ctx context.Context, email, password string) error {
+func (use *MemberUseCase) ResetPasswordByEmail(ctx context.Context, email, password string) error {
 	entityUser, err := use.memberRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -317,7 +317,7 @@ func (use *memberUseCase) ResetPasswordByEmail(ctx context.Context, email, passw
 	return nil
 }
 
-func (use *memberUseCase) ResetPasswordByUID(ctx context.Context, uid, password string) error {
+func (use *MemberUseCase) ResetPasswordByUID(ctx context.Context, uid, password string) error {
 	_, err := use.memberRepo.GetByUID(ctx, uid)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -338,7 +338,7 @@ func (use *memberUseCase) ResetPasswordByUID(ctx context.Context, uid, password 
 	return nil
 }
 
-func (use *memberUseCase) UpdateMemberInfo(ctx context.Context, param *usecase.UpdateMemberInfoParam) error {
+func (use *MemberUseCase) UpdateMemberInfo(ctx context.Context, param *usecase.UpdateMemberInfoParam) error {
 	if param.Email != nil {
 		if err := use.updateEmail(ctx, param.UID, *param.Email); err != nil {
 			return err
@@ -396,7 +396,7 @@ func (use *memberUseCase) UpdateMemberInfo(ctx context.Context, param *usecase.U
 }
 
 // updateEmail is responsible for update user,s email
-func (use *memberUseCase) updateEmail(ctx context.Context, uid, email string) error {
+func (use *MemberUseCase) updateEmail(ctx context.Context, uid, email string) error {
 	entityUser, err := use.memberRepo.GetByUID(ctx, uid)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -424,7 +424,7 @@ func (use *memberUseCase) updateEmail(ctx context.Context, uid, email string) er
 }
 
 // SetTemporaryFreeze 暫時凍結用戶
-func (use *memberUseCase) SetTemporaryFreeze(ctx context.Context, uid string, expireSec int) error {
+func (use *MemberUseCase) SetTemporaryFreeze(ctx context.Context, uid string, expireSec int) error {
 	user, err := use.memberRepo.GetByUID(ctx, uid)
 	if err != nil {
 		if errors.Is(err, repository.QueryRecordNotFoundError) {
@@ -450,7 +450,7 @@ func (use *memberUseCase) SetTemporaryFreeze(ctx context.Context, uid string, ex
 	return nil
 }
 
-func (use *memberUseCase) SetFiatCurrency(ctx context.Context, uid string, fiatCurrency string) error {
+func (use *MemberUseCase) SetFiatCurrency(ctx context.Context, uid string, fiatCurrency string) error {
 	err := use.userInfoRepo.UpdateFiatCurrency(ctx, uid, fiatCurrency)
 	if err != nil {
 		return fmt.Errorf("userInfoRepo.UpdateFiatCurrency err: %w", err)
@@ -458,7 +458,7 @@ func (use *memberUseCase) SetFiatCurrency(ctx context.Context, uid string, fiatC
 	return nil
 }
 
-func (use *memberUseCase) SetLanguage(ctx context.Context, uid string, language string) error {
+func (use *MemberUseCase) SetLanguage(ctx context.Context, uid string, language string) error {
 	err := use.userInfoRepo.UpdateLanguage(ctx, uid, language)
 	if err != nil {
 		return fmt.Errorf("userInfoRepo.UpdateLanguage err: %w", err)
@@ -470,4 +470,8 @@ func (use *memberUseCase) SetLanguage(ctx context.Context, uid string, language 
 	}
 
 	return nil
+}
+
+func (use *MemberUseCase) Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error) {
+	// TODO: implement me
 }

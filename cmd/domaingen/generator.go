@@ -1,11 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
-	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type pathFunc func(internal, filename string) string
@@ -54,9 +52,9 @@ func (g *Generator) DebugPrint() {
 	println("\tpkg:", g.pkg)
 	println("\treceiver:", g.receiver)
 	println("\treplace:", g.replace)
-	println("\timpName:", g.imp.ImplementationName)
-	println("\timp:", g.imp.Implementation)
-	for _, me := range g.imp.Me {
+	println("\timpName:", g.imp.Name)
+	println("\timp:", g.imp.upperCase)
+	for _, me := range g.imp.upperCase.Me {
 		println("\t\tmeName:", me.MethodName)
 		println("\t\tme:", me.Method)
 	}
@@ -73,7 +71,7 @@ func (g *Generator) Save(internalDir string) error {
 	parser := NewFileUpdater(g.pkg.String(), g.pathFunc(internalDir, g.filename))
 	file, err := parser.Parse()
 	if err != nil {
-		return errors.Errorf("parse file (%s), err: %+v", parser.path, err)
+		return fmt.Errorf("parse file (%s), err: %+v", parser.path, err)
 	}
 
 	/* find implementation and replace method */
@@ -81,40 +79,42 @@ func (g *Generator) Save(internalDir string) error {
 	for _, node := range file.Nodes {
 		switch node.Type {
 		case ntStruct:
-			if strings.EqualFold(node.Name, g.imp.ImplementationName) {
+			if g.imp.EqualName(node.Name) {
 				needInsertImplement = false
+				g.imp.SetCompareResultCharacterCase(node.Name)
 			}
 		case ntMethod:
-			if node.MethodReceiver != g.imp.ImplementationName {
+			if !g.imp.EqualName(node.MethodReceiver) {
 				continue
 			}
 
+			g.imp.SetCompareResultCharacterCase(node.MethodReceiver)
 			/* find match method */
-			if g.imp.Me[node.Name] == nil {
+			if g.imp.Content().Me[node.Name] == nil {
 				continue
 			}
 
 			if g.replace {
-				node.Value = g.imp.Me[node.Name].Method
+				node.Value = g.imp.Content().Me[node.Name].Method
 			}
 
-			delete(g.imp.Me, node.Name)
+			delete(g.imp.Content().Me, node.Name)
 		}
 	}
 
 	/* move to new file */
 
 	if needInsertImplement {
-		file.Nodes = append(file.Nodes, &FileNode{Value: g.imp.Implementation})
+		file.Nodes = append(file.Nodes, &FileNode{Value: g.imp.Content().Implementation})
 	}
 
-	for _, me := range g.imp.Me {
+	for _, me := range g.imp.Content().Me {
 		file.Nodes = append(file.Nodes, &FileNode{Value: me.Method})
 	}
 
 	/* save file */
 	if err := parser.SaveFile(file); err != nil {
-		return errors.Errorf("save file (%s), err: %+v", parser.path, err)
+		return fmt.Errorf("save file (%s), err: %+v", parser.path, err)
 	}
 
 	if *_debug {

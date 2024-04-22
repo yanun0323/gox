@@ -1,18 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 func getDir() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", errors.Errorf("get word dir, err: %+v", err)
+		return "", fmt.Errorf("get word dir, err: %+v", err)
 	}
 
 	dir := filepath.Join(cwd, os.Getenv("GOFILE"))
@@ -26,6 +27,10 @@ func requireNoError(err error, msg ...string) {
 		}
 		log.Fatalf("%s, err: %+v", msg[0], err)
 	}
+}
+
+func cleanStringQuote(s string) string {
+	return strings.Trim(strings.Trim(s, "\""), "'")
 }
 
 func currentPackage() Package {
@@ -46,12 +51,11 @@ func findInternalPath(dir string) (string, error) {
 	return internal, nil
 }
 
-func firstLowerCase(s string) string {
-	if s[0] <= 'Z' && s[0] >= 'A' {
-		buf := []byte(s)
-		gap := byte('a' - 'A')
-		buf[0] = buf[0] + gap
-		return string(buf)
+func findProjectPath(dir string) (string, error) {
+	spans := strings.Split(dir, "internal")
+	if len(spans) == 1 {
+		return "", errors.New("missing internal folder in working path")
 	}
-	return s
+
+	return spans[0], nil
 }

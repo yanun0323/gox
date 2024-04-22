@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type FileUpdater struct {
@@ -37,13 +37,13 @@ func (p *FileUpdater) Parse() (*File, error) {
 	}
 
 	if err != nil {
-		return nil, errors.Errorf("open file (%s), err: %+v", p.path, err)
+		return nil, fmt.Errorf("open file (%s), err: %+v", p.path, err)
 	}
 	defer f.Close()
 
 	buf, err := io.ReadAll(f)
 	if err != nil {
-		return nil, errors.Errorf("read file (%s), err: %+v", p.path, err)
+		return nil, fmt.Errorf("read file (%s), err: %+v", p.path, err)
 	}
 
 	rows := strings.Split(string(buf), "\n")
@@ -148,17 +148,17 @@ func (p *FileUpdater) SaveFile(file *File) error {
 	dir := filepath.Dir(p.path)
 	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return errors.Errorf("mkdir (%s) all, err: %+v", dir, err)
+		return fmt.Errorf("mkdir (%s) all, err: %+v", dir, err)
 	}
 
 	f, err := os.OpenFile(p.path, os.O_RDWR|os.O_CREATE, 0766)
 	if err != nil {
-		return errors.Errorf("create file (%s), err: %+v", p.path, err)
+		return fmt.Errorf("create file (%s), err: %+v", p.path, err)
 	}
 	defer f.Close()
 
 	if err := f.Truncate(0); err != nil {
-		return errors.Errorf("truncate file (%s), err: %+v", p.path, err)
+		return fmt.Errorf("truncate file (%s), err: %+v", p.path, err)
 	}
 
 	formatted, err := format.Source([]byte(content))
@@ -167,7 +167,7 @@ func (p *FileUpdater) SaveFile(file *File) error {
 	}
 
 	if _, err := f.WriteString(content); err != nil {
-		return errors.Errorf("write content into file (%s), err: %+v", p.path, err)
+		return fmt.Errorf("write content into file (%s), err: %+v", p.path, err)
 	}
 
 	return nil

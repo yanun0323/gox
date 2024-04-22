@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type SourceStructLoader struct {
@@ -22,12 +23,12 @@ func (pt *SourceStructLoader) Load() error {
 	fset, tf, f := pt.parsingFile(pt.Dir)
 	targetStruct, err := pt.getTargetStruct(tf, f)
 	if err != nil {
-		return errors.Wrap(err, "get target struct")
+		return fmt.Errorf("get target struct, err: %w", err)
 	}
 
 	structName, handledStruct, err := pt.handleStruct(targetStruct)
 	if err != nil {
-		return errors.Wrap(err, "handle struct")
+		return fmt.Errorf("handle struct, err: %w", err)
 	}
 
 	if pt.PrintAst {
@@ -38,7 +39,7 @@ func (pt *SourceStructLoader) Load() error {
 	buffer := bytes.NewBuffer(cache)
 	err = format.Node(buffer, token.NewFileSet(), handledStruct)
 	if err != nil {
-		errors.Errorf("format node, err: %+v", err)
+		fmt.Errorf("format node, err: %+v", err)
 	}
 
 	pt.structure = Structure{
@@ -101,7 +102,7 @@ func (SourceStructLoader) isComment(tf *token.File, f *ast.File, line int) bool 
 func (pt SourceStructLoader) handleStruct(st *ast.GenDecl) (string, *ast.GenDecl, error) {
 	targetStruct, err := pt.parsingStruct(st)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "parsing struct")
+		return "", nil, fmt.Errorf("parsing struct, err: %w", err)
 	}
 
 	return targetStruct.Name.Name, st, nil

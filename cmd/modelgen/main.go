@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
-const _commandName = "esc-model-gen"
+const _commandName = "modelgen"
 
 var (
 	_replace   = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
@@ -19,7 +19,7 @@ var (
 	_noComment = flag.Bool("nc", false, "do not generate comment")
 
 	_p   = flag.String("p", "", "file name to generate payload structure")
-	_pk  = flag.Bool("pk", false, "keep struct field tags")
+	_pj  = flag.Bool("pj", false, "remain/generate struct json tag")
 	_pr  = flag.Bool("pr", false, "replace payload structure and method if there's already a specified same structure (no working when provides -replace)")
 	_p2e = flag.Bool("p2e", false, "payload to entity: generate payload method 'ToEntity'")
 	_p2r = flag.Bool("p2r", false, "payload to repository: generate payload method 'ToRepository'")
@@ -31,7 +31,7 @@ var (
 	_pt  = flag.Bool("pt", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
 	_e   = flag.String("e", "", "file name to generate entity structure")
-	_ek  = flag.Bool("ek", false, "keep struct field tags")
+	_ej  = flag.Bool("ej", false, "remain/generate struct json tag")
 	_er  = flag.Bool("er", false, "replace entity structure and method if there's already a specified same structure (no working when provides -replace)")
 	_e2p = flag.Bool("e2p", false, "entity to payload: generate entity method 'ToPayload'")
 	_e2r = flag.Bool("e2r", false, "entity to repository: generate entity method 'ToRepository'")
@@ -43,7 +43,7 @@ var (
 	_et  = flag.Bool("et", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
 	_r   = flag.String("r", "", "file name to generate repository structure")
-	_rk  = flag.Bool("rk", false, "keep struct field tags")
+	_rj  = flag.Bool("rj", false, "remain/generate struct json tag")
 	_rr  = flag.Bool("rr", false, "replace repository structure and method if there's already a specified same structure (no working when provides -replace)")
 	_r2p = flag.Bool("r2p", false, "repository to payload: generate repository method 'ToPayload'")
 	_r2e = flag.Bool("r2e", false, "repository to entity: generate repository method 'ToEntity'")
@@ -55,7 +55,7 @@ var (
 	_rt  = flag.Bool("rt", false, "set fields which's field name has suffix 'Time' from 'int64' to 'string'")
 
 	_u   = flag.String("u", "", "file name to generate usecase structure")
-	_uk  = flag.Bool("uk", false, "keep struct field tags")
+	_uj  = flag.Bool("uj", false, "remain/generate struct json tag")
 	_ur  = flag.Bool("ur", false, "replace usecase structure and method if there's already a specified same structure (no working when provides -replace)")
 	_u2p = flag.Bool("u2p", false, "usecase to payload: generate usecase method 'ToPayload'")
 	_u2e = flag.Bool("u2e", false, "usecase to entity: generate usecase method 'ToEntity'")
@@ -89,7 +89,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}\t目標檔名(不需要路徑)\t\t\t\t-p=member.go\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t-{$}k\t保留目標 Struct Tag\t\t\t\t-pk\n")
+	fmt.Fprintf(os.Stderr, "\t-{$}j\t保留/生成 目標結構的 json tag\t\t\t-pj\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-{$}r\t強制取代目標現有的 Struct 及 Method\t\t-pr\n")
 	fmt.Fprintf(os.Stderr, "\n")
@@ -104,11 +104,12 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t範例:\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p=member.go -p2u -pu\n", _commandName)
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -p=member.go -p2u -pu -pj\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t\t-p=member.go\t生成程式碼在 payload member.go 檔案內\n")
 	fmt.Fprintf(os.Stderr, "\t\t-p2u\t\t生成 ToUseCase Method\n")
 	fmt.Fprintf(os.Stderr, "\t\t-pu\t\t將 time 結尾的 string 欄位轉換為 int64\n")
+	fmt.Fprintf(os.Stderr, "\t\t-pj\t\t生成 json tag\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -u=member.go -ufr\n", _commandName)
@@ -191,7 +192,7 @@ func main() {
 	}
 
 	if t := structure.GetStructType(); t != "struct" {
-		requireNoError(errors.Errorf("unsupported type %s, this command only works for `struct`", t))
+		requireNoError(fmt.Errorf("unsupported type %s, this command only works for `struct`", t))
 	}
 
 	generator := Generator{
@@ -209,7 +210,7 @@ func main() {
 			fromUseCase:    *_pfu,
 			unix:           *_pu,
 			timestamp:      *_pt,
-			keepTag:        *_pk,
+			genJson:        *_pj,
 			pathFunc:       _payloadPathFn,
 		}),
 		Entity: NewElement(ElementParam{
@@ -226,7 +227,7 @@ func main() {
 			fromUseCase:    *_efu,
 			unix:           *_eu,
 			timestamp:      *_et,
-			keepTag:        *_ek,
+			genJson:        *_ej,
 			pathFunc:       _entityPathFn,
 		}),
 		Repository: NewElement(ElementParam{
@@ -243,7 +244,7 @@ func main() {
 			fromUseCase:    *_rfu,
 			unix:           *_ru,
 			timestamp:      *_rt,
-			keepTag:        *_rk,
+			genJson:        *_rj,
 			pathFunc:       _repositoryPathFn,
 		}),
 		Usecase: NewElement(ElementParam{
@@ -260,7 +261,7 @@ func main() {
 			fromUseCase:    false,
 			unix:           *_uu,
 			timestamp:      *_ut,
-			keepTag:        *_uk,
+			genJson:        *_uj,
 			pathFunc:       _usecasePathFn,
 		}),
 	}

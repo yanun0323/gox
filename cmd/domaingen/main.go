@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
-const _commandName = "esc-domain-gen"
+const _commandName = "domaingen"
 
 var (
 	_replace = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
@@ -81,7 +81,7 @@ func main() {
 	}
 
 	if t := structure.GetStructType(); t != "interface" {
-		requireNoError(errors.Errorf("unsupported type %s, this command only works for `interface`", t))
+		requireNoError(fmt.Errorf("unsupported type %s, this command only works for `interface`", t))
 	}
 
 	pkg := currentPackage()

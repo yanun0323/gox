@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
@@ -10,7 +11,7 @@ type Structure struct {
 	Struct     string
 }
 
-func NewStructureFrom(pkg Package, st *Structure, unix, timestamp, keepTag bool) *Structure {
+func NewStructureFrom(pkg Package, st *Structure, unix, timestamp, genJson bool) *Structure {
 	lines := strings.Split(st.Struct, "\n")
 
 	rows := lines[1 : len(lines)-1]
@@ -45,27 +46,44 @@ func NewStructureFrom(pkg Package, st *Structure, unix, timestamp, keepTag bool)
 			}
 		}
 
-		if keepTag {
-			newLines = append(newLines, strings.Join(spans, " "))
-			continue
-		}
+		newSpans := make([]string, 0, len(spans)*2)
 
-		/* clean tag */
-		newSpans := make([]string, 0, len(spans))
-		tag := false
-		for _, span := range spans {
-			if len(span) != 0 && span[0] == '`' {
-				tag = true
-			}
+		cleanTag := true
+		if cleanTag {
+			tag := false
+			for _, span := range spans {
+				if len(span) != 0 && span[0] == '`' {
+					tag = true
+				}
 
-			if !tag {
-				newSpans = append(newSpans, span)
-			}
+				if !tag {
+					newSpans = append(newSpans, span)
+				}
 
-			if len(span) != 0 && span[len(span)-1] == '`' {
-				tag = false
+				if len(span) != 0 && span[len(span)-1] == '`' {
+					tag = false
+				}
 			}
 		}
+
+		if genJson {
+			jsonNameBuf := make([]byte, 0, len(spans[0])*2)
+			for i := range spans[0] {
+				char := spans[0][i]
+				if char >= 'A' && char <= 'Z' {
+					char = bytes.ToLower([]byte{char})[0]
+					if len(jsonNameBuf) != 0 {
+						jsonNameBuf = append(jsonNameBuf, '_')
+					}
+				}
+				jsonNameBuf = append(jsonNameBuf, char)
+			}
+
+			jsonName := strings.NewReplacer("i_d", "id", "u_i_d", "uid", "i_p", "ip").
+				Replace(string(jsonNameBuf))
+			newSpans = append(newSpans, "`json:\""+jsonName+"\"`")
+		}
+
 		newLines = append(newLines, strings.Join(newSpans, " "))
 	}
 
@@ -82,13 +100,13 @@ func isTimeField(field string) bool {
 }
 
 const (
-	_methodTemplate = `func (%s *%s) %s() *%s { /* generate from %s  */
+	_methodTemplate = `func (%s *%s) %s() *%s {
 		return &%s{
 			%s
 		}
 	}
 `
-	_functionTemplate = `func %s(%s *%s) *%s { /* generate from %s  */
+	_functionTemplate = `func %s(%s *%s) *%s {
 		return &%s{
 			%s
 		}
@@ -115,7 +133,7 @@ func (st *Structure) GenMethod(pkg Package, methodName string) *Method {
 	return &Method{
 		MethodName: methodName,
 		Method: fmt.Sprintf(_methodTemplate,
-			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName, pkg.String(),
+			receiver, st.StructName, methodName, pkg.String()+"."+st.StructName,
 			pkg.String()+"."+st.StructName,
 			strings.Join(setters, "\n"),
 		),
@@ -135,7 +153,7 @@ func (st *Structure) GenFunction(pkg Package, functionNameSuffix string) *Functi
 	return &Function{
 		FunctionName: functionName,
 		Function: fmt.Sprintf(_functionTemplate,
-			functionName, receiver, pkg.String()+"."+st.StructName, st.StructName, pkg.String(),
+			functionName, receiver, pkg.String()+"."+st.StructName, st.StructName,
 			st.StructName,
 			strings.Join(setters, "\n"),
 		),

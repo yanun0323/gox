@@ -1,5 +1,7 @@
 .PHONY:
 
+CURDIR = $(shell printf "%q\n" "$(PWD)")
+
 open:
 	open ${HOME}/go/bin
 
@@ -16,20 +18,15 @@ run.debug:
 
 help:
 	make install &&\
-	esc-model-gen -h &&\
-	esc-domain-gen -h
+	modelgen -h &&\
+	domaingen -h
 
 install:
-	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/inspector &&\
-	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/esc-model-gen &&\
-	go install /Users/yanun.y/Library/Mobile\ Documents/com~apple~CloudDocs/Project/fameex/gox/cmd/esc-domain-gen
-
-install.curdir:
 	go install ${CURDIR}/cmd/inspector &&\
-	go install ${CURDIR}/cmd/esc-model-gen &&\
-	go install ${CURDIR}/cmd/esc-domain-gen
+	go install ${CURDIR}/cmd/modelgen &&\
+	go install ${CURDIR}/cmd/domaingen
 
 remove:
 	rm -rf ${HOME}/go/bin/inspector;\
-	rm -rf ${HOME}/go/bin/esc-model-gen;\
-	rm -rf ${HOME}/go/bin/esc-domain-gen
+	rm -rf ${HOME}/go/bin/modelgen;\
+	rm -rf ${HOME}/go/bin/domaingen

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type SourceStructLoader struct {
@@ -22,12 +23,12 @@ func (pt *SourceStructLoader) Load() error {
 	fset, tf, f := pt.parsingFile(pt.Dir)
 	targetInterface, err := pt.getTargetInterface(tf, f)
 	if err != nil {
-		return errors.Wrap(err, "get target interface")
+		return fmt.Errorf("get target interface, err: %w", err)
 	}
 
 	interfaceName, handledInterface, err := pt.handleInterface(targetInterface)
 	if err != nil {
-		return errors.Wrap(err, "handle interface")
+		return fmt.Errorf("handle interface, err: %w", err)
 	}
 
 	if pt.PrintAst {
@@ -38,7 +39,7 @@ func (pt *SourceStructLoader) Load() error {
 	buffer := bytes.NewBuffer(cache)
 	err = format.Node(buffer, token.NewFileSet(), handledInterface)
 	if err != nil {
-		errors.Errorf("format node, err: %+v", err)
+		fmt.Errorf("format node, err: %+v", err)
 	}
 
 	pt.in = Interface{
@@ -85,7 +86,7 @@ func (SourceStructLoader) getTargetInterface(tf *token.File, f *ast.File) (*ast.
 func (pt SourceStructLoader) handleInterface(st *ast.GenDecl) (string, *ast.GenDecl, error) {
 	targetInterface, err := pt.parsingInterface(st)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "parsing interface")
+		return "", nil, fmt.Errorf("parsing interface, err: %w", err)
 	}
 
 	return targetInterface.Name.Name, st, nil

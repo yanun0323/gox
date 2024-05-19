@@ -132,7 +132,7 @@ func Usage() {
 
 func main() {
 	setupLog()
-
+	return
 	if *_helpAll {
 		flag.PrintDefaults()
 		flag.Usage()

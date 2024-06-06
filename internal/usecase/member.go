@@ -2,35 +2,24 @@ package usecase
 
 import (
 	"context"
-	"errors"
+
+	"gox/internal/domain/usecase"
 )
 
-//go:generate domaingen -v -target=../../usecase/member.go
-type MemberUseCase interface {
-	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
+// go:generate inspector
+type memberUsecase struct{}
+
+func NewMemberUsecase() usecase.MemberUseCase {
+	return &memberUsecase{}
 }
 
-var (
-	ErrNotFound         = errors.New("not found")
-	ErrPermissionDenied = errors.New("permission denied")
-)
-
-type UpdatePhoneReq struct {
-	Phone       string
-	AreaCode    string
-	CaptchaCode string
-	CreateTime  int64
-	UpdateTime  int64
-	CreateAt    int64
-	UpdateAt    int64
+func (use *memberUsecase) Start(ctx context.Context, req *usecase.UpdatePhoneReq) (*usecase.UpdatePhoneResp, error) {
+	return nil, nil
 }
 
-type UpdatePhoneResp struct {
-	Phone       string
-	AreaCode    string
-	CaptchaCode string
-	CreateTime  string
-	UpdateTime  string
-	CreateAt    string
-	UpdateAt    string
+func (use *memberUsecase) End(ctx context.Context, req *usecase.UpdatePhoneReq) (*usecase.UpdatePhoneResp, error) {
+	return nil, nil
+}
+
+func (use *memberUsecase) Exit(ctx context.Context) {
 }

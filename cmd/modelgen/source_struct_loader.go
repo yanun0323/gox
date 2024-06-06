@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -9,8 +10,6 @@ import (
 	"go/token"
 	"os"
 	"strconv"
-
-	"errors"
 )
 
 type SourceStructLoader struct {

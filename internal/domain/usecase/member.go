@@ -1,3 +1,5 @@
+// This is the comment
+// for explain this package.
 package usecase
 
 import (
@@ -5,9 +7,11 @@ import (
 	"errors"
 )
 
-//go:generate domaingen -v -target=../../usecase/member.go
+//go:generate domaingen -v -target=../../usecase/member.go -struct=memberUseCase
 type MemberUseCase interface {
-	Start(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
+	Start(ctx context.Context, req *UpdatePhoneReq) (res *UpdatePhoneResp, err error)
+	End(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)
+	Exit(ctx context.Context)
 }
 
 var (

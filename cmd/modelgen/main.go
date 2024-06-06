@@ -1,12 +1,11 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-
-	"errors"
 )
 
 const _commandName = "modelgen"

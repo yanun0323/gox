@@ -4,21 +4,24 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"log"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
+
+	"github.com/yanun0323/goast"
+	"github.com/yanun0323/goast/kind"
+	"github.com/yanun0323/goast/scope"
 )
 
 const _commandName = "domaingen"
 
 var (
-	_replace    = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
-	_debug      = flag.Bool("v", false, "show debug information")
-	_help       = flag.Bool("h", false, "show command help")
-	_targetFile = flag.String("target", "", "target file name to generate implementation")
-	_structName = flag.String("struct", "", "target implementation structure name")
+	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
+	_debug       = flag.Bool("v", false, "show debug information")
+	_help        = flag.Bool("h", false, "show command help")
+	_destination = flag.String("destination", "", "target file name to generate implementation")
+	_name        = flag.String("name", "", "target implementation structure name")
+	_package     = flag.String("package", "", "target implementation structure name")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -41,81 +44,182 @@ func Usage() {
 
 func main() {
 	setupLog()
+	environmentPrint()
+	debugPrint()
 
 	if *_help {
 		flag.Usage()
 		return
 	}
 
-	checkTargetFile()
-	debugPrint()
-	environmentPrint()
+	requireDestination()
+	err := run()
+	NoError(err)
+}
 
-	_, fd := getDir()
+func run() error {
+	_, file, err := getDir()
+	if err != nil {
+		return fmt.Errorf("get directory, err: %w", err)
+	}
 
-	helper, err := NewAstHelper(fd)
-	requireNoError(err, "new ast helper")
+	ast, err := goast.ParseAst(file)
+	if err != nil {
+		return fmt.Errorf("parse ast, err: %w", err)
+	}
 
-	line, _ := strconv.Atoi(os.Getenv("GOLINE"))
-	pos := helper.tf.LineStart(line)
+	goLine, err := strconv.Atoi(os.Getenv("GOLINE"))
+	if err != nil {
+		return fmt.Errorf("parse GOLINE, err: %w", err)
+	}
 
-	var decl *ast.GenDecl
-	for i, d := range helper.f.Decls[1:] {
-		println(i)
-		gd, ok := d.(*ast.GenDecl)
-		if ok && pos >= d.Pos() || pos <= d.End() {
-			decl = gd
+	pkg := os.Getenv("GOPACKAGE")
+
+	// find target interface
+	var (
+		lineMatched bool
+		targetScope goast.Scope
+	)
+
+	ast.IterScope(func(s goast.Scope) bool {
+		lineMatched = lineMatched || s.Line() == goLine
+		if lineMatched && s.Kind() == scope.Type {
+			targetScope = s
+			return false
+		}
+		return true
+	})
+
+	if targetScope == nil {
+		return errors.New("target interface not found")
+	}
+
+	// find interface name and set implement name
+	interfaceName, ok := targetScope.GetTypeName()
+	if !ok || len(interfaceName) == 0 {
+		return errors.New("target interface name not found")
+	}
+
+	if len(*_name) == 0 {
+		*_name = firstLowerCase(interfaceName)
+	}
+
+	// add package name in front of paramType
+	importPkg := false
+
+	targetScope.Node().IterNext(func(n *goast.Node) bool {
+		text := n.Text()
+		if len(text) == 0 || n.Kind() != kind.ParamType || !isFirstUpperCase(text) {
+			return true
+		}
+
+		importPkg = true
+
+		if text[0] == '*' {
+			n.SetText("*" + pkg + "." + string(text[1:]))
+			return true
+		}
+
+		n.SetText(pkg + "." + text)
+		return true
+	})
+
+	// get func node table
+	funcIndexTable := map[string]int{}
+	funcSlice := []*goast.Node{}
+	targetScope.Node().IterNext(func(n *goast.Node) bool {
+		if n.Kind() == kind.FuncName {
+			funcIndexTable[n.Text()] = len(funcSlice)
+			funcSlice = append(funcSlice, n)
+			_ = n.RemovePrev()
+		}
+		return true
+	})
+
+	// add the 'func(x *X)' to the start of func node
+	// and the '{}' to the end of func node
+	for i, n := range funcSlice {
+		println()
+		n.DebugPrint()
+		println()
+		tail := n.IterNext(func(nn *goast.Node) bool { return nn.Next() != nil })
+		for {
+			switch tail.Kind() {
+			case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
+				tail = tail.Prev()
+				continue
+			}
 			break
 		}
+		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n"))
+
+		head := goast.NewNodes(n.Line(), "func", "(", string(firstLowerCase(*_name)[0]), " ", "*"+*_name, ")", " ")
+		headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
+		headTail.ReplaceNext(n)
+		funcSlice[i] = head
 	}
 
-	if decl == nil {
-		requireNoError(errors.New("interface not found"))
+	// try get destination file
+	destination := *_destination
+	if !strings.HasSuffix(destination, ".go") {
+		destination = destination + ".go"
 	}
 
-	for _, sp := range decl.Specs {
-		s, ok := sp.(*ast.TypeSpec)
-		if !ok {
-			continue
+	desAst, err := goast.ParseAst(destination)
+	if err != nil && !errors.Is(err, goast.ErrNotExist) {
+		return fmt.Errorf("parse destination ast, err: %w", err)
+	}
+
+	importText := ""
+	if importPkg {
+		s, err := getSourceImportString()
+		if err == nil {
+			importText = fmt.Sprintf("import (\n\t\"%s\"\n)", s)
+		}
+	}
+
+	if desAst == nil {
+		// create new ast
+
+		// create struct
+		text := fmt.Sprintf(`package %s
+
+%s
+
+type %s struct {
+	// TODO: Implement me
+}
+
+func New%s() %s.%s {
+	// TODO: Implement me
+	return &%s{}
+}
+
+`, *_package, importText, *_name, interfaceName, pkg, interfaceName, *_name)
+
+		scs, err := goast.ParseScope(0, []byte(text))
+		if err != nil {
+			return fmt.Errorf("parse scope for creating struct, err: %w", err)
 		}
 
-		fmt.Printf("%+v\n", *s)
+		for _, fnNode := range funcSlice {
+			scs = append(scs, goast.NewScope(fnNode.Line(), scope.Func, fnNode))
+		}
+
+		newAst, err := goast.NewAst(scs...)
+		if err != nil {
+			return fmt.Errorf("new ast, err: %w", err)
+		}
+
+		println(newAst.String())
+
+		if err := newAst.Save(destination); err != nil {
+			return fmt.Errorf("save new ast, err: %w", err)
+		}
+
+		return nil
 	}
 
-	helper.PrintAst()
-
-	// if err := SaveAst(fset, f, filepath.Join(wd, *_targetFile)); err != nil {
-	// 	requireNoError(err)
-	// }
-}
-
-func setupLog() {
-	log.SetFlags(0)
-	log.SetPrefix(_commandName + ": ")
-	flag.Usage = Usage
-	flag.Parse()
-}
-
-func checkTargetFile() {
-	if len(*_targetFile) == 0 {
-		flag.Usage()
-		requireNoError(errors.New("entity/use/repo at least one param provide"))
-	}
-}
-
-func debugPrint() {
-	if *_debug {
-		println()
-		println("\t", "replace", "=", *_replace)
-		println("\t", "name", "=", *_targetFile)
-		println()
-	}
-}
-
-func getDir() (currentDirectory string, currentFile string) {
-	cwd, err := os.Getwd()
-	requireNoError(err, "Getwd")
-
-	fileDir := filepath.Join(cwd, os.Getenv("GOFILE"))
-	return cwd, fileDir
+	// insert func into ast
+	return nil
 }

@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-//go:generate domaingen -v -target=../../usecase/member.go -struct=memberUseCase
+//go:generate domaingen -v -destination=../../usecase2/member.go -package=usecase -name=memberUseCase
 type MemberUseCase interface {
 	Start(ctx context.Context, req *UpdatePhoneReq) (res *UpdatePhoneResp, err error)
 	End(ctx context.Context, req *UpdatePhoneReq) (*UpdatePhoneResp, error)

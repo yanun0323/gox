@@ -43,73 +43,161 @@ func Usage() {
 }
 
 func main() {
-	setupLog()
-	environmentPrint()
-	debugPrint()
-
-	if *_help {
-		flag.Usage()
-		return
-	}
-
-	requireDestination()
-	err := run()
-	NoError(err)
+	NoError(run())
 }
 
 func run() error {
-	_, file, err := getDir()
-	if err != nil {
-		return fmt.Errorf("get directory, err: %w", err)
+	helper.setupLog()
+	helper.environmentPrint()
+	helper.debugPrint()
+
+	if *_help {
+		flag.Usage()
+		return nil
 	}
 
-	ast, err := goast.ParseAst(file)
+	println("requireDestination")
+	helper.requireDestination()
+
+	println("parseAstFromGoGenerator")
+	ast, goLine, pkg, err := parseAstFromGoGenerator()
 	if err != nil {
-		return fmt.Errorf("parse ast, err: %w", err)
+		return err
 	}
 
-	goLine, err := strconv.Atoi(os.Getenv("GOLINE"))
+	println("findTargetInterface")
+	targetScope, err := findTargetInterface(ast, goLine)
 	if err != nil {
-		return fmt.Errorf("parse GOLINE, err: %w", err)
+		return err
 	}
 
-	pkg := os.Getenv("GOPACKAGE")
+	println("findInterfaceNameAndSetImplementName")
+	interfaceName, err := findInterfaceNameAndSetImplementName(targetScope)
+	if err != nil {
+		return err
+	}
 
-	// find target interface
+	println("addPackageNameInFrontOfParamType")
+	importPkg := addPackageNameInFrontOfParamType(targetScope, pkg)
+
+	println("getFuncNodes")
+	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(targetScope)
+
+	println("addMethodImplementationPrefixSuffix")
+	addMethodImplementationPrefixSuffix(methodNodes)
+
+	println("tryGetDestinationFile")
+	desAst, destination, err := tryGetDestinationFile()
+	if err != nil {
+		return err
+	}
+
+	destinationFileNotFound := desAst == nil
+
+	if destinationFileNotFound {
+		println("createNewDestinationFileAndSave")
+		return createNewDestinationFileAndSave(
+			importPkg,
+			interfaceName,
+			pkg,
+			destination,
+			methodNodes,
+		)
+	}
+
+	println("updateDestinationFileAndSave")
+	return updateDestinationFileAndSave(
+		desAst,
+		interfaceName,
+		pkg,
+		destination,
+		methodNodes,
+		methodNodesIndexTable,
+	)
+}
+
+func parseAstFromGoGenerator() (ast goast.Ast, goLine int, pkg string, err error) {
+	_, file, err := helper.getDir()
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("get directory, err: %w", err)
+	}
+
+	astObj, err := goast.ParseAst(file)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("parse ast, err: %w", err)
+	}
+
+	goLineNum, err := strconv.Atoi(os.Getenv("GOLINE"))
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("parse GOLINE, err: %w", err)
+	}
+
+	pkgName := os.Getenv("GOPACKAGE")
+
+	return astObj, goLineNum, pkgName, nil
+}
+
+func findTargetInterface(ast goast.Ast, goLine int) (goast.Scope, error) {
 	var (
 		lineMatched bool
 		targetScope goast.Scope
 	)
 
 	ast.IterScope(func(s goast.Scope) bool {
-		lineMatched = lineMatched || s.Line() == goLine
-		if lineMatched && s.Kind() == scope.Type {
-			targetScope = s
-			return false
+		println(goLine, s.Line())
+		if lineMatched {
+			if s.Line() != goLine {
+				return false
+			}
+
+			goLine++
+
+			switch s.Kind() {
+			case scope.Type:
+				if _, ok := s.GetInterfaceName(); ok {
+					targetScope = s
+				}
+
+				return false
+			case scope.Comment:
+				return true
+			default:
+				return false
+			}
+		} else {
+			lineMatched = s.Line() == goLine
+			if lineMatched {
+				goLine++
+			}
 		}
+
 		return true
 	})
 
 	if targetScope == nil {
-		return errors.New("target interface not found")
+		return nil, errors.New("target interface not found")
 	}
 
-	// find interface name and set implement name
+	return targetScope, nil
+}
+
+func findInterfaceNameAndSetImplementName(targetScope goast.Scope) (string, error) {
 	interfaceName, ok := targetScope.GetTypeName()
 	if !ok || len(interfaceName) == 0 {
-		return errors.New("target interface name not found")
+		return "", errors.New("target interface name not found")
 	}
 
 	if len(*_name) == 0 {
-		*_name = firstLowerCase(interfaceName)
+		*_name = helper.firstLowerCase(interfaceName)
 	}
 
-	// add package name in front of paramType
-	importPkg := false
+	return interfaceName, nil
+}
 
+func addPackageNameInFrontOfParamType(targetScope goast.Scope, pkg string) (importPkg bool) {
 	targetScope.Node().IterNext(func(n *goast.Node) bool {
 		text := n.Text()
-		if len(text) == 0 || n.Kind() != kind.ParamType || !isFirstUpperCase(text) {
+		if len(text) == 0 || n.Kind() != kind.ParamType || !helper.isFirstUpperCase(text) {
 			return true
 		}
 
@@ -124,24 +212,29 @@ func run() error {
 		return true
 	})
 
-	// get func node table
-	funcIndexTable := map[string]int{}
-	funcSlice := []*goast.Node{}
+	return importPkg
+}
+
+func getInterfaceMethodNodes(targetScope goast.Scope) ([]*goast.Node, map[string]int) {
+	funcNodes := []*goast.Node{}
+	funcNodesIndexTable := map[string]int{}
+
 	targetScope.Node().IterNext(func(n *goast.Node) bool {
 		if n.Kind() == kind.FuncName {
-			funcIndexTable[n.Text()] = len(funcSlice)
-			funcSlice = append(funcSlice, n)
+			funcNodesIndexTable[n.Text()] = len(funcNodes)
+			funcNodes = append(funcNodes, n)
 			_ = n.RemovePrev()
 		}
 		return true
 	})
 
-	// add the 'func(x *X)' to the start of func node
-	// and the '{}' to the end of func node
-	for i, n := range funcSlice {
-		println()
-		n.DebugPrint()
-		println()
+	return funcNodes, funcNodesIndexTable
+}
+
+// add the 'func(x *X)' to the start of func node
+// and the '{}' to the end of func node
+func addMethodImplementationPrefixSuffix(methodNodes []*goast.Node) {
+	for i, n := range methodNodes {
 		tail := n.IterNext(func(nn *goast.Node) bool { return nn.Next() != nil })
 		for {
 			switch tail.Kind() {
@@ -151,15 +244,21 @@ func run() error {
 			}
 			break
 		}
-		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n"))
 
-		head := goast.NewNodes(n.Line(), "func", "(", string(firstLowerCase(*_name)[0]), " ", "*"+*_name, ")", " ")
+		if *_replace {
+			tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+		} else {
+			tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+		}
+
+		head := goast.NewNodes(n.Line(), "\n", "func", "(", string(helper.firstLowerCase(*_name)[0]), " ", "*"+*_name, ")", " ")
 		headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
 		headTail.ReplaceNext(n)
-		funcSlice[i] = head
+		methodNodes[i] = head
 	}
+}
 
-	// try get destination file
+func tryGetDestinationFile() (goast.Ast, string, error) {
 	destination := *_destination
 	if !strings.HasSuffix(destination, ".go") {
 		destination = destination + ".go"
@@ -167,59 +266,213 @@ func run() error {
 
 	desAst, err := goast.ParseAst(destination)
 	if err != nil && !errors.Is(err, goast.ErrNotExist) {
-		return fmt.Errorf("parse destination ast, err: %w", err)
+		return nil, "", fmt.Errorf("parse destination ast, err: %w", err)
 	}
 
+	return desAst, destination, nil
+}
+
+func createNewDestinationFileAndSave(importPkg bool, interfaceName, pkg, destination string, methodNodes []*goast.Node) error {
+	text := fmt.Sprintf("%s\n%s\n%s\n%s\n",
+		genPackageString(),
+		genImportString(importPkg),
+		genImplementationString(),
+		genConstructorString(interfaceName, pkg),
+	)
+
+	scs, err := goast.ParseScope(0, []byte(text))
+	if err != nil {
+		return fmt.Errorf("parse scope for creating struct, err: %w", err)
+	}
+
+	for _, fnNode := range methodNodes {
+		scs = append(scs, goast.NewScope(fnNode.Line(), scope.Func, fnNode))
+	}
+
+	newAst, err := goast.NewAst(scs...)
+	if err != nil {
+		return fmt.Errorf("new ast, err: %w", err)
+	}
+
+	if err := newAst.Save(destination); err != nil {
+		return fmt.Errorf("save new ast, err: %w", err)
+	}
+
+	return nil
+}
+
+func genPackageString() string {
+	return fmt.Sprintf("package %s\n", *_package)
+}
+
+func genImportString(importPkg bool) string {
 	importText := ""
 	if importPkg {
-		s, err := getSourceImportString()
+		s, err := helper.getSourceImportString()
 		if err == nil {
-			importText = fmt.Sprintf("import (\n\t\"%s\"\n)", s)
+			importText = fmt.Sprintf("import (\n\t\"%s\"\n)\n", s)
 		}
 	}
 
-	if desAst == nil {
-		// create new ast
-
-		// create struct
-		text := fmt.Sprintf(`package %s
-
-%s
-
-type %s struct {
-	// TODO: Implement me
+	return importText
 }
 
-func New%s() %s.%s {
-	// TODO: Implement me
-	return &%s{}
+func genImplementationString() string {
+	if *_replace {
+		return fmt.Sprintf("type %s struct {\n\t// Replace by %s\n\t// TODO: Implement me\n}\n", *_name, _commandName)
+	} else {
+		return fmt.Sprintf("type %s struct {\n\t// TODO: Implement me\n}\n", *_name)
+	}
 }
 
-`, *_package, importText, *_name, interfaceName, pkg, interfaceName, *_name)
+func genConstructorString(interfaceName, pkg string) string {
+	if *_replace {
+		return fmt.Sprintf("func %s() %s.%s {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), pkg, interfaceName, _commandName, *_name)
+	} else {
+		return fmt.Sprintf("func %s() %s.%s {\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), pkg, interfaceName, *_name)
+	}
+}
 
-		scs, err := goast.ParseScope(0, []byte(text))
-		if err != nil {
-			return fmt.Errorf("parse scope for creating struct, err: %w", err)
-		}
+func constructFuncName(interfaceName string) string {
+	return fmt.Sprintf("New%s", interfaceName)
+}
 
-		for _, fnNode := range funcSlice {
-			scs = append(scs, goast.NewScope(fnNode.Line(), scope.Func, fnNode))
-		}
+func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg string, destination string, methodNodes []*goast.Node, methodNodesIndexTable map[string]int) error {
+	// find implementation is exist or not
+	var (
+		isPackageExist     bool
+		isStructExist      bool
+		isConstructorExist bool
+		scopes             []goast.Scope
 
-		newAst, err := goast.NewAst(scs...)
-		if err != nil {
-			return fmt.Errorf("new ast, err: %w", err)
-		}
+		newFuncName = constructFuncName(interfaceName)
+	)
 
-		println(newAst.String())
+	if *_replace {
+		desAst.IterScope(func(sc goast.Scope) bool {
+			if sc.Kind() == scope.Package {
+				isPackageExist = true
+			}
 
-		if err := newAst.Save(destination); err != nil {
-			return fmt.Errorf("save new ast, err: %w", err)
-		}
+			name, ok := sc.GetStructName()
+			if ok && strings.EqualFold(name, *_name) {
+				return true
+			}
 
-		return nil
+			fnName, ok := sc.GetFuncName()
+			if ok && strings.EqualFold(fnName, newFuncName) {
+				return true
+			}
+
+			receiverType, _, ok := findScopeMethod(sc)
+			if ok && helper.receiverTypeEqual(receiverType, *_name) {
+				return true
+			}
+
+			scopes = append(scopes, sc)
+
+			return true
+		})
+	} else {
+		// find isStructExist, isConstructorExist and if methods exist
+		desAst.IterScope(func(sc goast.Scope) bool {
+			scopes = append(scopes, sc)
+
+			if sc.Kind() == scope.Package {
+				isPackageExist = true
+			}
+
+			name, ok := sc.GetStructName()
+			if ok && strings.EqualFold(name, *_name) {
+				isStructExist = true
+			}
+
+			fnName, ok := sc.GetFuncName()
+			if ok && strings.EqualFold(fnName, newFuncName) {
+				isConstructorExist = true
+			}
+
+			receiverType, methodName, ok := findScopeMethod(sc)
+			if !ok {
+				return true
+			}
+
+			if !helper.receiverTypeEqual(receiverType, *_name) {
+				return true
+			}
+
+			i := methodNodesIndexTable[methodName]
+			if i < len(methodNodes) {
+				methodNodes[i] = nil
+			}
+
+			return true
+		})
 	}
 
-	// insert func into ast
-	return nil
+	if !isPackageExist {
+		scs, err := goast.ParseScope(0, []byte(genPackageString()))
+		if err != nil {
+			return fmt.Errorf("parse scope for package, err: %w", err)
+		}
+
+		scopes = append(scs, scopes...)
+	}
+
+	if !isStructExist {
+		scs, err := goast.ParseScope(0, []byte(genImplementationString()))
+		if err != nil {
+			return fmt.Errorf("parse scope for struct, err: %w", err)
+		}
+
+		scopes = append(scopes, scs...)
+	}
+
+	if !isConstructorExist {
+		scs, err := goast.ParseScope(0, []byte(genConstructorString(interfaceName, pkg)))
+		if err != nil {
+			return fmt.Errorf("parse scope for constructor, err: %w", err)
+		}
+
+		scopes = append(scopes, scs...)
+	}
+
+	for _, fnNode := range methodNodes {
+		if fnNode == nil {
+			continue
+		}
+
+		scopes = append(scopes, goast.NewScope(0, scope.Func, fnNode))
+	}
+
+	resultAst := desAst.SetScope(scopes)
+
+	return resultAst.Save(destination)
+}
+
+func findScopeMethod(sc goast.Scope) (receiverType string, methodName string, ok bool) {
+	if sc.Kind() != scope.Func {
+		return "", "", false
+	}
+
+	var (
+		rName  string
+		rFound bool
+		mName  string
+		mFound bool
+	)
+	sc.Node().IterNext(func(n *goast.Node) bool {
+		switch n.Kind() {
+		case kind.MethodReceiverType:
+			rName = n.Text()
+			rFound = true
+		case kind.FuncName:
+			mName = n.Text()
+			mFound = true
+		}
+
+		return !mFound
+	})
+
+	return rName, mName, rFound && mFound
 }

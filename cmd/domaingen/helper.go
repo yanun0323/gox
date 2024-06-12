@@ -10,12 +10,6 @@ import (
 	"strings"
 )
 
-func environmentPrint() {
-	for _, ev := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
-		fmt.Println("\t", ev, "=", os.Getenv(ev))
-	}
-}
-
 func NoError(err error, msg ...string) {
 	if err != nil {
 		if len(msg) == 0 || len(msg[0]) == 0 {
@@ -25,7 +19,17 @@ func NoError(err error, msg ...string) {
 	}
 }
 
-func firstLowerCase(s string) string {
+var helper = helperInstance{}
+
+type helperInstance struct{}
+
+func (helperInstance) environmentPrint() {
+	for _, ev := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
+		fmt.Println("\t", ev, "=", os.Getenv(ev))
+	}
+}
+
+func (helperInstance) firstLowerCase(s string) string {
 	if s[0] <= 'Z' && s[0] >= 'A' {
 		buf := []byte(s)
 		gap := byte('a' - 'A')
@@ -35,7 +39,7 @@ func firstLowerCase(s string) string {
 	return s
 }
 
-func firstUpperCase(s string) string {
+func (helperInstance) firstUpperCase(s string) string {
 	if s[0] <= 'z' && s[0] >= 'a' {
 		buf := []byte(s)
 		gap := byte('a' - 'A')
@@ -45,21 +49,21 @@ func firstUpperCase(s string) string {
 	return s
 }
 
-func isFirstUpperCase(s string) bool {
+func (helperInstance) isFirstUpperCase(s string) bool {
 	if s[0] == '*' && len(s) >= 2 {
 		return s[1] >= 'A' && s[1] <= 'Z'
 	}
 	return s[0] >= 'A' && s[0] <= 'Z'
 }
 
-func setupLog() {
+func (helperInstance) setupLog() {
 	log.SetFlags(0)
 	log.SetPrefix(_commandName + ": ")
 	flag.Usage = Usage
 	flag.Parse()
 }
 
-func requireDestination() {
+func (helperInstance) requireDestination() {
 	if len(*_destination) == 0 {
 		flag.Usage()
 		NoError(errors.New("entity/use/repo at least one param provide"))
@@ -71,7 +75,7 @@ func requireDestination() {
 	}
 }
 
-func debugPrint() {
+func (helperInstance) debugPrint() {
 	if *_debug {
 		println()
 		println("\t", "replace", "=", *_replace)
@@ -80,7 +84,7 @@ func debugPrint() {
 	}
 }
 
-func getDir() (currentDirectory string, currentFile string, e error) {
+func (helperInstance) getDir() (currentDirectory string, currentFile string, e error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", "", err
@@ -90,8 +94,8 @@ func getDir() (currentDirectory string, currentFile string, e error) {
 	return cwd, file, nil
 }
 
-func getSourceImportString() (string, error) {
-	cwd, file, err := getDir()
+func (helperInstance) getSourceImportString() (string, error) {
+	cwd, file, err := helperInstance{}.getDir()
 	if err != nil {
 		return "", err
 	}
@@ -119,4 +123,14 @@ func getSourceImportString() (string, error) {
 	}
 
 	return "", errors.New("project not found")
+}
+
+func (helperInstance) receiverTypeEqual(a, b string) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return false
+	}
+
+	a = strings.TrimPrefix(a, "*")
+	b = strings.TrimPrefix(b, "*")
+	return strings.EqualFold(a, b)
 }

@@ -30,15 +30,13 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
-	fmt.Fprintf(os.Stderr, "\t-target\t\t目標檔案名稱\t\t\t-target=../../usecase/member_usecase.go\n")
-	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Method\n")
+	fmt.Fprintf(os.Stderr, "\t-name\t\t目標結構的名稱\t\t\t-name=usecase\n")
+	fmt.Fprintf(os.Stderr, "\t-destination\t\t目標檔案名稱\t\t\t-destination=../../usecase/member_usecase.go\n")
+	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Struct/Function/Method\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t範例:\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate %s -target=../../usecase/member.go -replace\n", _commandName)
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t\t-f=member.go\t生成程式碼在 usecase/repository member.go 檔案內\n")
-	fmt.Fprintf(os.Stderr, "\t\t-replace\t強制取代目標相同名稱的 Method\n")
+	fmt.Fprintf(os.Stderr, "\t//go:generate %s -destination=../../usecase/member.go -name=usecase -replace\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
@@ -48,7 +46,6 @@ func main() {
 
 func run() error {
 	helper.setupLog()
-	helper.environmentPrint()
 	helper.debugPrint()
 
 	if *_help {
@@ -56,37 +53,29 @@ func run() error {
 		return nil
 	}
 
-	println("requireDestination")
 	helper.requireDestination()
 
-	println("parseAstFromGoGenerator")
 	ast, goLine, pkg, err := parseAstFromGoGenerator()
 	if err != nil {
 		return err
 	}
 
-	println("findTargetInterface")
 	targetScope, err := findTargetInterface(ast, goLine)
 	if err != nil {
 		return err
 	}
 
-	println("findInterfaceNameAndSetImplementName")
 	interfaceName, err := findInterfaceNameAndSetImplementName(targetScope)
 	if err != nil {
 		return err
 	}
 
-	println("addPackageNameInFrontOfParamType")
 	importPkg := addPackageNameInFrontOfParamType(targetScope, pkg)
 
-	println("getFuncNodes")
 	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(targetScope)
 
-	println("addMethodImplementationPrefixSuffix")
 	addMethodImplementationPrefixSuffix(methodNodes)
 
-	println("tryGetDestinationFile")
 	desAst, destination, err := tryGetDestinationFile()
 	if err != nil {
 		return err
@@ -95,7 +84,6 @@ func run() error {
 	destinationFileNotFound := desAst == nil
 
 	if destinationFileNotFound {
-		println("createNewDestinationFileAndSave")
 		return createNewDestinationFileAndSave(
 			importPkg,
 			interfaceName,
@@ -105,7 +93,6 @@ func run() error {
 		)
 	}
 
-	println("updateDestinationFileAndSave")
 	return updateDestinationFileAndSave(
 		desAst,
 		interfaceName,

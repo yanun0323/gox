@@ -131,7 +131,6 @@ func findTargetInterface(ast goast.Ast, goLine int) (goast.Scope, error) {
 	)
 
 	ast.IterScope(func(s goast.Scope) bool {
-		println(goLine, s.Line())
 		if lineMatched {
 			if s.Line() != goLine {
 				return false

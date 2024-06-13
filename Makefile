@@ -22,9 +22,9 @@ help:
 	domaingen -h
 
 install:
-	go install ${CURDIR}/cmd/inspector &&\
-	go install ${CURDIR}/cmd/modelgen &&\
-	go install ${CURDIR}/cmd/domaingen
+	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/inspector &&\
+	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/modelgen &&\
+	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/domaingen
 
 remove:
 	rm -rf ${HOME}/go/bin/inspector;\

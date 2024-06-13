@@ -1,5 +1,6 @@
 package payload
 
+//go:generate modelgen -destination=../../../entity/account.go -package=entity -name=UpdatePhone -function=to
 type UpdatePhoneReq struct {
 	Phone       string `json:"phone" binding:"required"`
 	AreaCode    string `json:"area_code" binding:"required"`

@@ -49,11 +49,10 @@ func (helperInstance) firstUpperCase(s string) string {
 	return s
 }
 
-func (helperInstance) isFirstUpperCase(s string) bool {
-	if s[0] == '*' && len(s) >= 2 {
-		return s[1] >= 'A' && s[1] <= 'Z'
-	}
-	return s[0] >= 'A' && s[0] <= 'Z'
+func (helperInstance) isFirstUpperCase(s string, ignoreChars ...byte) bool {
+	tidied := helper.tidyString(s, ignoreChars...)
+
+	return tidied[0] >= 'A' && tidied[0] <= 'Z'
 }
 
 func (helperInstance) setupLog() {
@@ -125,12 +124,30 @@ func (helperInstance) getSourceImportString() (string, error) {
 	return "", errors.New("project not found")
 }
 
-func (helperInstance) receiverTypeEqual(a, b string) bool {
+func (helperInstance) EqualFold(a, b string, ignoreChars ...byte) bool {
+	a = helper.tidyString(a, ignoreChars...)
+	b = helper.tidyString(b, ignoreChars...)
+
 	if len(a) == 0 || len(b) == 0 {
 		return false
 	}
 
-	a = strings.TrimPrefix(a, "*")
-	b = strings.TrimPrefix(b, "*")
 	return strings.EqualFold(a, b)
+}
+
+func (helperInstance) tidyString(s string, removeChars ...byte) string {
+	tidied := s
+	for _, char := range removeChars {
+		tidied = strings.ReplaceAll(tidied, string(char), "")
+	}
+
+	return tidied
+}
+
+func (helperInstance) insertString(s, prefix, insert string) string {
+	if strings.HasPrefix(s, prefix) {
+		return prefix + insert + strings.TrimPrefix(s, prefix)
+	}
+
+	return insert + s
 }

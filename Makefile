@@ -3,10 +3,10 @@
 CURDIR = $(shell printf "%q\n" "$(PWD)")
 
 open:
-	open ${HOME}/go/bin
+	open /usr/local/bin/
 
 ls:
-	ls ${HOME}/go/bin
+	ls /usr/local/bin/
 
 run:
 	make install &&\
@@ -20,6 +20,12 @@ help:
 	make install &&\
 	modelgen -h &&\
 	domaingen -h
+
+install.domaingen:
+	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/domaingen
+
+install.modelgen:
+	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/modelgen
 
 install:
 	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/inspector &&\

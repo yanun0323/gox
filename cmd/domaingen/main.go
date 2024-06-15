@@ -16,12 +16,12 @@ import (
 const _commandName = "domaingen"
 
 var (
-	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
-	_debug       = flag.Bool("v", false, "show debug information")
 	_help        = flag.Bool("h", false, "show command help")
+	_debug       = flag.Bool("v", false, "show debug information")
+	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
 	_destination = flag.String("destination", "", "target file name to generate implementation")
-	_name        = flag.String("name", "", "target implementation structure name")
 	_package     = flag.String("package", "", "target implementation structure name")
+	_name        = flag.String("name", "", "target implementation structure name")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -183,18 +183,12 @@ func findInterfaceNameAndSetImplementName(targetScope goast.Scope) (string, erro
 func addPackageNameInFrontOfParamType(targetScope goast.Scope, pkg string) (importPkg bool) {
 	targetScope.Node().IterNext(func(n *goast.Node) bool {
 		text := n.Text()
-		if len(text) == 0 || n.Kind() != kind.ParamType || !helper.isFirstUpperCase(text) {
+		if len(text) == 0 || n.Kind() != kind.ParamType || !helper.isFirstUpperCase(text, '*') {
 			return true
 		}
 
 		importPkg = true
-
-		if text[0] == '*' {
-			n.SetText("*" + pkg + "." + string(text[1:]))
-			return true
-		}
-
-		n.SetText(pkg + "." + text)
+		n.SetText(helper.insertString(text, "*", pkg+"."))
 		return true
 	})
 
@@ -351,7 +345,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg string, d
 			}
 
 			receiverType, _, ok := findScopeMethod(sc)
-			if ok && helper.receiverTypeEqual(receiverType, *_name) {
+			if ok && helper.EqualFold(receiverType, *_name, '*') {
 				return true
 			}
 
@@ -383,7 +377,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg string, d
 				return true
 			}
 
-			if !helper.receiverTypeEqual(receiverType, *_name) {
+			if !helper.EqualFold(receiverType, *_name, '*') {
 				return true
 			}
 

@@ -21,18 +21,12 @@ help:
 	modelgen -h &&\
 	domaingen -h
 
-install.domaingen:
-	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/domaingen
-
-install.modelgen:
-	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/modelgen
-
 install:
-	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/inspector &&\
 	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/modelgen &&\
 	GOBIN=/usr/local/bin/ sudo go install ${CURDIR}/cmd/domaingen
 
 remove:
-	rm -rf ${HOME}/go/bin/inspector;\
 	rm -rf ${HOME}/go/bin/modelgen;\
-	rm -rf ${HOME}/go/bin/domaingen
+	rm -rf ${HOME}/go/bin/domaingen;\
+	rm -rf /usr/local/bin/modelgen;\
+	rm -rf /usr/local/bin/domaingen

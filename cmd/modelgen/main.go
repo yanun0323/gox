@@ -66,8 +66,6 @@ func run() error {
 		return err
 	}
 
-	targetScope = targetScope
-
 	structName, err := findStructNameAndSetImplementName(targetScope)
 	if err != nil {
 		return err
@@ -84,6 +82,8 @@ func run() error {
 	} else {
 		importPkg = addPackageNameInFrontOfParamType(targetScope, pkg)
 	}
+
+	println(structName, importPkg, relativeScopes, relativeScopesNames)
 
 	return nil
 }

@@ -13,8 +13,11 @@ import (
 func NoError(err error, msg ...string) {
 	if err != nil {
 		if len(msg) == 0 || len(msg[0]) == 0 {
+			println(err)
 			log.Fatal(err)
 		}
+
+		println(fmt.Errorf("%s, err: %w", msg[0], err))
 		log.Fatalf("%s, err: %+v", msg[0], err)
 	}
 }
@@ -62,7 +65,7 @@ func (helperInstance) setupLog() {
 	flag.Parse()
 }
 
-func (helperInstance) requireDestination() {
+func (helperInstance) requireTag() {
 	if len(*_destination) == 0 {
 		flag.Usage()
 		NoError(errors.New("entity/use/repo at least one param provide"))

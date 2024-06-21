@@ -27,14 +27,15 @@ var (
 // Usage is a replacement usage function for the flags package.
 func Usage() {
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置\n", _commandName)
+	fmt.Fprintf(os.Stderr, "%s: generate an implementation from the interface \n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
-	fmt.Fprintf(os.Stderr, "\t-name\t\t目標結構的名稱\t\t\t-name=usecase\n")
-	fmt.Fprintf(os.Stderr, "\t-destination\t\t目標檔案名稱\t\t\t-destination=../../usecase/member_usecase.go\n")
-	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Struct/Function/Method\n")
+	fmt.Fprintf(os.Stderr, "\t-h\t\t\tshow usage\n")
+	fmt.Fprintf(os.Stderr, "\t-name\t\t\timplemented struct name\t\t\t-name=usecase\n")
+	fmt.Fprintf(os.Stderr, "\t-package\t(require)\timplemented struct package name\n")
+	fmt.Fprintf(os.Stderr, "\t-destination\t(require)\tgenerated file path\t\t\t-destination=../../usecase/member_usecase.go\n")
+	fmt.Fprintf(os.Stderr, "\t-replace\t\tforce replace exist struct/func/method\n")
 	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t範例:\n")
+	fmt.Fprintf(os.Stderr, "\texample:\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t//go:generate %s -destination=../../usecase/member.go -name=usecase -replace\n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
@@ -53,7 +54,7 @@ func run() error {
 		return nil
 	}
 
-	helper.requireDestination()
+	helper.requireTag()
 
 	ast, goLine, pkg, err := parseAstFromGoGenerator()
 	if err != nil {
@@ -231,7 +232,15 @@ func addMethodImplementationPrefixSuffix(methodNodes []*goast.Node) {
 			tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
 		}
 
-		head := goast.NewNodes(n.Line(), "\n", "func", "(", string(helper.firstLowerCase(*_name)[0]), " ", "*"+*_name, ")", " ")
+		receiverName := string(helper.firstLowerCase(*_name)[0])
+		lowercaseName := strings.ToLower(*_name)
+		if strings.Contains(lowercaseName, "usecase") {
+			receiverName = "use"
+		} else if strings.Contains(lowercaseName, "repo") {
+			receiverName = "repo"
+		}
+
+		head := goast.NewNodes(n.Line(), "\n", "func", "(", receiverName, " ", "*"+*_name, ")", " ")
 		headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
 		headTail.ReplaceNext(n)
 		methodNodes[i] = head

@@ -240,9 +240,10 @@ func getInterfaceMethodNodes(ast goast.Ast, targetScope goast.Scope) ([]*goast.N
 		}
 
 		fns, fnit := getInterfaceMethodNodes(ast, s)
+		idxOffset := len(funcNodes)
 		funcNodes = append(funcNodes, fns...)
 		for k, v := range fnit {
-			funcNodesIndexTable[k] = v
+			funcNodesIndexTable[k] = v + idxOffset
 		}
 	}
 

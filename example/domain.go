@@ -36,7 +36,8 @@ type ExampleResponse struct {
 	Value any    `json:"value"`
 }
 
-//go:generate domaingen -replace -destination=../output/repository/example.go -package=repository
+// go: generate domaingen -replace -destination=../output/repository/example.go -package=repository
+//
 //go:generate domaingen -destination=same_folder.go -name=exampleRepo -package=example
 type ExampleRepository interface {
 	EmbedInterface

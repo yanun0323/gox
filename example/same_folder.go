@@ -2,36 +2,39 @@ package example
 
 import "context"
 
+type repo struct {
+	// TODO: Implement me
+}
+
+func (repo *repo) Embed() {
+	// TODO: Implement me
+}
+
 type exampleRepo struct {
-	// Replace by domaingen
 	// TODO: Implement me
 }
 
 func NewExampleRepository() ExampleRepository {
-	// Replace by domaingen
 	// TODO: Implement me
 	return &exampleRepo{}
 }
 
-func (r *exampleRepo) Create(context.Context, *Example) error {
-	// Replace by domaingen
+func (repo *exampleRepo) Update(context.Context, *Example) error {
 	// TODO: Implement me
 }
 
-func (r *exampleRepo) Update(context.Context, *Example) error {
-	// Replace by domaingen
+func (repo *exampleRepo) Delete(context.Context, int64) error {
 	// TODO: Implement me
 }
 
-func (r *exampleRepo) Delete(context.Context, int64) error {
-	// Replace by domaingen
+func (repo *exampleRepo) Embed() {
 	// TODO: Implement me
 }
 
-func (r *exampleRepo) Embed() {
+func (repo *exampleRepo) Embed2() {
 	// TODO: Implement me
 }
 
-func (r *exampleRepo) Embed2() {
+func (repo *exampleRepo) Create(context.Context, *Example) error {
 	// TODO: Implement me
 }

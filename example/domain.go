@@ -39,8 +39,10 @@ type ExampleResponse struct {
 // go: generate domaingen -replace -destination=../output/repository/example.go -package=repository
 //
 //go:generate domaingen -destination=same_folder_file.go -name=exampleRepo -package=example
+//go:generate domaingen -destination=./output/same_folder_file.go -name=exampleRepo -package=example
 type ExampleRepository interface {
 	EmbedInterface
+	EmbedInterface3
 
 	Create(context.Context, *Example) error
 	Update(context.Context, *Example) error
@@ -55,4 +57,8 @@ type EmbedInterface interface {
 
 type EmbedInterface2 interface {
 	Embed2()
+}
+
+type EmbedInterface3 interface {
+	Embed3()
 }

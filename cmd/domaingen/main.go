@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,7 @@ func run() error {
 
 	helper.requireTag()
 
-	ast, goLine, pkg, err := parseAstFromGoGenerator()
+	ast, goLine, pkg, curDir, err := parseAstFromGoGenerator()
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,11 @@ func run() error {
 		return err
 	}
 
-	importPkg := addPackageNameInFrontOfParamType(targetScope, pkg)
+	importPkg := false
+	isSameFolder := isDestinationSameFolderToSource(curDir)
+	if !isSameFolder {
+		importPkg = addPackageNameInFrontOfParamType(targetScope, pkg)
+	}
 
 	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(ast, targetScope)
 
@@ -88,6 +93,7 @@ func run() error {
 	if destinationFileNotFound {
 		return createNewDestinationFileAndSave(
 			importPkg,
+			isSameFolder,
 			interfaceName,
 			pkg,
 			destination,
@@ -97,6 +103,7 @@ func run() error {
 
 	return updateDestinationFileAndSave(
 		desAst,
+		isSameFolder,
 		interfaceName,
 		pkg,
 		destination,
@@ -105,25 +112,25 @@ func run() error {
 	)
 }
 
-func parseAstFromGoGenerator() (ast goast.Ast, goLine int, pkg string, err error) {
-	_, file, err := helper.getDir()
+func parseAstFromGoGenerator() (ast goast.Ast, goLine int, pkg string, curDir string, err error) {
+	dir, file, err := helper.getDir()
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("get directory, err: %w", err)
+		return nil, 0, "", "", fmt.Errorf("get directory, err: %w", err)
 	}
 
 	astObj, err := goast.ParseAst(file)
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("parse ast, err: %w", err)
+		return nil, 0, "", "", fmt.Errorf("parse ast, err: %w", err)
 	}
 
 	goLineNum, err := strconv.Atoi(os.Getenv("GOLINE"))
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("parse GOLINE, err: %w", err)
+		return nil, 0, "", "", fmt.Errorf("parse GOLINE, err: %w", err)
 	}
 
 	pkgName := os.Getenv("GOPACKAGE")
 
-	return astObj, goLineNum, pkgName, nil
+	return astObj, goLineNum, pkgName, dir, nil
 }
 
 func findTargetInterface(ast goast.Ast, goLine int) (goast.Scope, error) {
@@ -180,6 +187,15 @@ func findInterfaceNameAndSetImplementName(targetScope goast.Scope) (string, erro
 	}
 
 	return interfaceName, nil
+}
+
+func isDestinationSameFolderToSource(curDir string) bool {
+	targetFile := *_destination
+	if !filepath.IsAbs(targetFile) {
+		targetFile, _ = filepath.Abs(targetFile)
+	}
+	targetDir := filepath.Dir(targetFile)
+	return curDir == targetDir
 }
 
 func addPackageNameInFrontOfParamType(targetScope goast.Scope, pkg string) (importPkg bool) {
@@ -299,12 +315,12 @@ func tryGetDestinationFile() (goast.Ast, string, error) {
 	return desAst, destination, nil
 }
 
-func createNewDestinationFileAndSave(importPkg bool, interfaceName, pkg, destination string, methodNodes []*goast.Node) error {
+func createNewDestinationFileAndSave(importPkg, isSameFolder bool, interfaceName, pkg, destination string, methodNodes []*goast.Node) error {
 	text := fmt.Sprintf("%s\n%s\n%s\n%s\n",
 		genPackageString(),
 		genImportString(importPkg),
 		genImplementationString(),
-		genConstructorString(interfaceName, pkg),
+		genConstructorString(interfaceName, pkg, isSameFolder),
 	)
 
 	scs, err := goast.ParseScope(0, []byte(text))
@@ -352,11 +368,16 @@ func genImplementationString() string {
 	}
 }
 
-func genConstructorString(interfaceName, pkg string) string {
+func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
+	returnType := pkg + "." + interfaceName
+	if isSameFolder {
+		returnType = interfaceName
+	}
+
 	if *_replace {
-		return fmt.Sprintf("func %s() %s.%s {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), pkg, interfaceName, _commandName, *_name)
+		return fmt.Sprintf("func %s() %s {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), returnType, _commandName, *_name)
 	} else {
-		return fmt.Sprintf("func %s() %s.%s {\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), pkg, interfaceName, *_name)
+		return fmt.Sprintf("func %s() %s {\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), returnType, *_name)
 	}
 }
 
@@ -364,7 +385,7 @@ func constructFuncName(interfaceName string) string {
 	return fmt.Sprintf("New%s", interfaceName)
 }
 
-func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg string, destination string, methodNodes []*goast.Node, methodNodesIndexTable map[string]int) error {
+func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interfaceName, pkg string, destination string, methodNodes []*goast.Node, methodNodesIndexTable map[string]int) error {
 	// find implementation is exist or not
 	var (
 		isPackageExist     bool
@@ -456,7 +477,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg string, d
 	}
 
 	if !isConstructorExist {
-		scs, err := goast.ParseScope(0, []byte(genConstructorString(interfaceName, pkg)))
+		scs, err := goast.ParseScope(0, []byte(genConstructorString(interfaceName, pkg, isSameFolder)))
 		if err != nil {
 			return fmt.Errorf("parse scope for constructor, err: %w", err)
 		}

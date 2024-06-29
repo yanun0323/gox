@@ -13,3 +13,4 @@ go.work
 *.build
 output
 sample
+*same_folder_file*

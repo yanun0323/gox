@@ -13,27 +13,25 @@ func NewExampleRepository() ExampleRepository {
 	return &exampleRepo{}
 }
 
-func (repo *exampleRepo) Create(context.Context, *Example) error {
+func (r *exampleRepo) Create(context.Context, *Example) error {
 	// Replace by domaingen
 	// TODO: Implement me
 }
 
-func (repo *exampleRepo) Update(context.Context, *Example) error {
+func (r *exampleRepo) Update(context.Context, *Example) error {
 	// Replace by domaingen
 	// TODO: Implement me
 }
 
-func (repo *exampleRepo) Delete(context.Context, int64) error {
+func (r *exampleRepo) Delete(context.Context, int64) error {
 	// Replace by domaingen
 	// TODO: Implement me
 }
 
-func (repo *exampleRepo) Embed() {
-	// Replace by domaingen
+func (r *exampleRepo) Embed() {
 	// TODO: Implement me
 }
 
-func (repo *exampleRepo) Embed2() {
-	// Replace by domaingen
+func (r *exampleRepo) Embed2() {
 	// TODO: Implement me
 }

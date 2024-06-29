@@ -81,8 +81,6 @@ func run() error {
 
 	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(ast, targetScope)
 
-	addMethodImplementationPrefixSuffix(methodNodes)
-
 	desAst, destination, err := tryGetDestinationFile()
 	if err != nil {
 		return err
@@ -266,41 +264,6 @@ func findInterfaceScope(ast goast.Ast, name string) (goast.Scope, bool) {
 	return result, result != nil
 }
 
-// add the 'func(x *X)' to the start of func node
-// and the '{}' to the end of func node
-func addMethodImplementationPrefixSuffix(methodNodes []*goast.Node) {
-	for i, n := range methodNodes {
-		tail := n.IterNext(func(nn *goast.Node) bool { return nn.Next() != nil })
-		for {
-			switch tail.Kind() {
-			case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
-				tail = tail.Prev()
-				continue
-			}
-			break
-		}
-
-		if *_replace {
-			tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
-		} else {
-			tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
-		}
-
-		receiverName := string(helper.firstLowerCase(*_name)[0])
-		lowercaseName := strings.ToLower(*_name)
-		if strings.Contains(lowercaseName, "usecase") {
-			receiverName = "use"
-		} else if strings.Contains(lowercaseName, "repo") {
-			receiverName = "repo"
-		}
-
-		head := goast.NewNodes(n.Line(), "\n", "func", "(", receiverName, " ", "*"+*_name, ")", " ")
-		headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
-		headTail.ReplaceNext(n)
-		methodNodes[i] = head
-	}
-}
-
 func tryGetDestinationFile() (goast.Ast, string, error) {
 	destination := *_destination
 	if !strings.HasSuffix(destination, ".go") {
@@ -329,6 +292,7 @@ func createNewDestinationFileAndSave(importPkg, isSameFolder bool, interfaceName
 	}
 
 	for _, fnNode := range methodNodes {
+		fnNode = addMethodImplementationPrefixSuffix(fnNode, "")
 		scs = append(scs, goast.NewScope(fnNode.Line(), scope.Func, fnNode))
 	}
 
@@ -381,6 +345,41 @@ func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
 	}
 }
 
+// add the 'func(x *X)' to the start of func node
+// and the '{}' to the end of func node
+func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName string) *goast.Node {
+	tail := methodNode.IterNext(func(nn *goast.Node) bool { return nn.Next() != nil })
+	for {
+		switch tail.Kind() {
+		case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
+			tail = tail.Prev()
+			continue
+		}
+		break
+	}
+
+	if *_replace {
+		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+	} else {
+		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+	}
+
+	if len(receiverName) == 0 {
+		receiverName = string(helper.firstLowerCase(*_name)[0])
+		lowercaseName := strings.ToLower(*_name)
+		if strings.Contains(lowercaseName, "usecase") {
+			receiverName = "use"
+		} else if strings.Contains(lowercaseName, "repo") {
+			receiverName = "repo"
+		}
+	}
+
+	head := goast.NewNodes(methodNode.Line(), "\n", "func", "(", receiverName, " ", "*"+*_name, ")", " ")
+	headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
+	headTail.ReplaceNext(methodNode)
+	return head
+}
+
 func constructFuncName(interfaceName string) string {
 	return fmt.Sprintf("New%s", interfaceName)
 }
@@ -396,7 +395,10 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 		newFuncName = constructFuncName(interfaceName)
 	)
 
+	existReceiverName := ""
+
 	if *_replace {
+		// keep other code
 		desAst.IterScope(func(sc goast.Scope) bool {
 			if sc.Kind() == scope.Package {
 				isPackageExist = true
@@ -412,8 +414,12 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 				return true
 			}
 
-			receiverType, _, ok := findScopeMethod(sc)
+			receiverName, receiverType, _, ok := findScopeMethod(sc)
 			if ok && helper.EqualFold(receiverType, *_name, '*') {
+				if len(receiverName) != 0 {
+					existReceiverName = receiverName
+				}
+
 				return true
 			}
 
@@ -440,13 +446,17 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 				isConstructorExist = true
 			}
 
-			receiverType, methodName, ok := findScopeMethod(sc)
+			receiverName, receiverType, methodName, ok := findScopeMethod(sc)
 			if !ok {
 				return true
 			}
 
 			if !helper.EqualFold(receiverType, *_name, '*') {
 				return true
+			}
+
+			if len(receiverName) != 0 {
+				existReceiverName = receiverName
 			}
 
 			i := methodNodesIndexTable[methodName]
@@ -489,7 +499,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 		if fnNode == nil {
 			continue
 		}
-
+		fnNode = addMethodImplementationPrefixSuffix(fnNode, existReceiverName)
 		scopes = append(scopes, goast.NewScope(0, scope.Func, fnNode))
 	}
 
@@ -498,22 +508,27 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 	return resultAst.Save(destination)
 }
 
-func findScopeMethod(sc goast.Scope) (receiverType string, methodName string, ok bool) {
+func findScopeMethod(sc goast.Scope) (receiverName, receiverType, methodName string, ok bool) {
 	if sc.Kind() != scope.Func {
-		return "", "", false
+		return "", "", "", false
 	}
 
 	var (
-		rName  string
-		rFound bool
-		mName  string
-		mFound bool
+		rName   string
+		rnFound bool
+		rType   string
+		rtFound bool
+		mName   string
+		mFound  bool
 	)
 	sc.Node().IterNext(func(n *goast.Node) bool {
 		switch n.Kind() {
-		case kind.MethodReceiverType:
+		case kind.MethodReceiverName:
 			rName = n.Text()
-			rFound = true
+			rnFound = true
+		case kind.MethodReceiverType:
+			rType = n.Text()
+			rtFound = true
 		case kind.FuncName:
 			mName = n.Text()
 			mFound = true
@@ -522,5 +537,5 @@ func findScopeMethod(sc goast.Scope) (receiverType string, methodName string, ok
 		return !mFound
 	})
 
-	return rName, mName, rFound && mFound
+	return rName, rType, mName, rnFound && rtFound && mFound
 }

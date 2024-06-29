@@ -4,11 +4,18 @@ import (
 	"context"
 )
 
+//go:generate modelgen -destination=../output/entity/example.go -package=entity -name=ExampleEntity -tagged -replace -relative
 type Example struct {
 	ID        int64  `gorm:"column:id;primaryKey;autoIncrement"`
 	Key       string `gorm:"column:key"`
 	Msg       string `gorm:"column:message"`
 	CreatedAt int64  `gorm:"column:created_at;autoCreateTime"`
+	Extension *ExampleExtension
+}
+
+type ExampleExtension struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 //go:generate domaingen -destination=../output/usecase/example.go -package=usecase -name=exampleUsecase
@@ -31,7 +38,19 @@ type ExampleResponse struct {
 
 //go:generate domaingen -replace -destination=../output/repository/example.go -package=repository
 type ExampleRepository interface {
+	EmbedInterface
+
 	Create(context.Context, *Example) error
 	Update(context.Context, *Example) error
 	Delete(context.Context, int64) error
+}
+
+type EmbedInterface interface {
+	EmbedInterface2
+
+	Embed()
+}
+
+type EmbedInterface2 interface {
+	Embed2()
 }

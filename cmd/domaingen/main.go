@@ -19,6 +19,7 @@ var (
 	_help        = flag.Bool("h", false, "show command help")
 	_debug       = flag.Bool("v", false, "show debug information")
 	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
+	_noEmbed     = flag.Bool("noembed", false, "skip implementing embed interface functions")
 	_destination = flag.String("destination", "", "target file name to generate implementation")
 	_package     = flag.String("package", "", "target implementation structure name")
 	_name        = flag.String("name", "", "target implementation structure name")
@@ -73,7 +74,7 @@ func run() error {
 
 	importPkg := addPackageNameInFrontOfParamType(targetScope, pkg)
 
-	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(targetScope)
+	methodNodes, methodNodesIndexTable := getInterfaceMethodNodes(ast, targetScope)
 
 	addMethodImplementationPrefixSuffix(methodNodes)
 
@@ -196,20 +197,57 @@ func addPackageNameInFrontOfParamType(targetScope goast.Scope, pkg string) (impo
 	return importPkg
 }
 
-func getInterfaceMethodNodes(targetScope goast.Scope) ([]*goast.Node, map[string]int) {
+func getInterfaceMethodNodes(ast goast.Ast, targetScope goast.Scope) ([]*goast.Node, map[string]int) {
 	funcNodes := []*goast.Node{}
 	funcNodesIndexTable := map[string]int{}
+	embedInterfaceNames := []string{}
+	targetScopeName, _ := targetScope.GetInterfaceName()
 
 	targetScope.Node().IterNext(func(n *goast.Node) bool {
-		if n.Kind() == kind.FuncName {
+		switch n.Kind() {
+		case kind.FuncName:
 			funcNodesIndexTable[n.Text()] = len(funcNodes)
 			funcNodes = append(funcNodes, n)
 			_ = n.RemovePrev()
+		case kind.TypeName:
+			if !*_noEmbed {
+				if len(targetScopeName) != 0 && targetScopeName != n.Text() {
+					embedInterfaceNames = append(embedInterfaceNames, n.Text())
+				}
+			}
 		}
 		return true
 	})
 
+	for _, name := range embedInterfaceNames {
+		s, ok := findInterfaceScope(ast, name)
+		if !ok {
+			continue
+		}
+
+		fns, fnit := getInterfaceMethodNodes(ast, s)
+		funcNodes = append(funcNodes, fns...)
+		for k, v := range fnit {
+			funcNodesIndexTable[k] = v
+		}
+	}
+
 	return funcNodes, funcNodesIndexTable
+}
+
+func findInterfaceScope(ast goast.Ast, name string) (goast.Scope, bool) {
+	var result goast.Scope
+	ast.IterScope(func(s goast.Scope) bool {
+		in, ok := s.GetInterfaceName()
+		if ok && in == name {
+
+			result = s
+			return false
+		}
+
+		return true
+	})
+	return result, result != nil
 }
 
 // add the 'func(x *X)' to the start of func node

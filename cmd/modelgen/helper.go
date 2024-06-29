@@ -13,8 +13,11 @@ import (
 func NoError(err error, msg ...string) {
 	if err != nil {
 		if len(msg) == 0 || len(msg[0]) == 0 {
+			println(err)
 			log.Fatal(err)
 		}
+
+		println(fmt.Errorf("%s, err: %w", msg[0], err))
 		log.Fatalf("%s, err: %+v", msg[0], err)
 	}
 }

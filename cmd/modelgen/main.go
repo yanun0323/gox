@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/yanun0323/goast"
 	"github.com/yanun0323/goast/kind"
@@ -18,27 +19,28 @@ var (
 	_help        = flag.Bool("h", false, "show command help")
 	_debug       = flag.Bool("v", false, "show debug information")
 	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
-	_relative    = flag.Bool("relative", false, "target implementation structure name")
-	_destination = flag.String("destination", "", "target file name to generate implementation")
-	_package     = flag.String("package", "", "target implementation structure name")
-	_name        = flag.String("name", "", "target implementation structure name")
-	_function    = flag.String("function", "", "target implementation structure name")
+	_relative    = flag.Bool("relative", false, "target model structure name")
+	_tagged      = flag.Bool("tagged", false, "keep struct's tags or not")
+	_destination = flag.String("destination", "", "target file name to generate model")
+	_package     = flag.String("package", "", "target model structure name")
+	_name        = flag.String("name", "", "target model structure name")
+	_function    = flag.String("function", "", "target model structure name")
 )
 
 // Usage is a replacement usage function for the flags package.
 func Usage() {
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置\n", _commandName)
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
-	fmt.Fprintf(os.Stderr, "\t-name\t\t目標結構的名稱\t\t\t-name=usecase\n")
-	fmt.Fprintf(os.Stderr, "\t-destination\t\t目標檔案名稱\t\t\t-destination=../../usecase/member_usecase.go\n")
-	fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Struct/Function/Method\n")
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t範例:\n")
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "\t//go:generate %s -destination=../../usecase/member.go -name=usecase -replace\n", _commandName)
-	fmt.Fprintf(os.Stderr, "\n")
+	// fmt.Fprintf(os.Stderr, "\n")
+	// fmt.Fprintf(os.Stderr, "%s: 根據定義的介面 package, 生成程式碼到對應位置\n", _commandName)
+	// fmt.Fprintf(os.Stderr, "\n")
+	// fmt.Fprintf(os.Stderr, "\t-h\t\t顯示用法\n")
+	// fmt.Fprintf(os.Stderr, "\t-name\t\t目標結構的名稱\t\t\t-name=usecase\n")
+	// fmt.Fprintf(os.Stderr, "\t-destination\t\t目標檔案名稱\t\t\t-destination=../../usecase/member_usecase.go\n")
+	// fmt.Fprintf(os.Stderr, "\t-replace\t強制取代目標相同名稱的 Struct/Function/Method\n")
+	// fmt.Fprintf(os.Stderr, "\n")
+	// fmt.Fprintf(os.Stderr, "\t範例:\n")
+	// fmt.Fprintf(os.Stderr, "\n")
+	// fmt.Fprintf(os.Stderr, "\t//go:generate %s -destination=../../usecase/member.go -name=usecase -replace\n", _commandName)
+	// fmt.Fprintf(os.Stderr, "\n")
 }
 
 func main() {
@@ -83,10 +85,34 @@ func run() error {
 		importPkg = addPackageNameInFrontOfParamType(targetScope, pkg)
 	}
 
-	println(structName, importPkg, relativeScopes, relativeScopesNames)
+	desAst, destination, err := tryGetDestinationFile()
+	if err != nil {
+		return err
+	}
 
-	return nil
+	destinationFileNotFound := desAst == nil
+
+	if destinationFileNotFound {
+		return createNewDestinationFileAndSave(
+			importPkg,
+			structName,
+			pkg,
+			destination,
+			relativeScopes,
+			relativeScopesNames,
+		)
+	}
+
+	return updateDestinationFileAndSave(
+		desAst,
+		structName,
+		pkg,
+		destination,
+		relativeScopes,
+		relativeScopesNames,
+	)
 }
+
 func parseAstFromGoGenerator() (ast goast.Ast, goLine int, pkg string, err error) {
 	_, file, err := helper.getDir()
 	if err != nil {
@@ -225,4 +251,26 @@ func findRelativeScopes(ast goast.Ast, targetScope goast.Scope) (map[string]goas
 	findRelativeScope(targetScope)
 
 	return resultScopes, resultScopeNames
+}
+
+func tryGetDestinationFile() (goast.Ast, string, error) {
+	destination := *_destination
+	if !strings.HasSuffix(destination, ".go") {
+		destination = destination + ".go"
+	}
+
+	desAst, err := goast.ParseAst(destination)
+	if err != nil && !errors.Is(err, goast.ErrNotExist) {
+		return nil, "", fmt.Errorf("parse destination ast, err: %w", err)
+	}
+
+	return desAst, destination, nil
+}
+
+func createNewDestinationFileAndSave(importPkg bool, interfaceName, pkg, destination string, relativeScopes map[string]goast.Scope, relativeScopesNames []string) error {
+	return nil
+}
+
+func updateDestinationFileAndSave(desAst goast.Ast, interfaceName, pkg, destination string, relativeScopes map[string]goast.Scope, relativeScopesNames []string) error {
+	return nil
 }

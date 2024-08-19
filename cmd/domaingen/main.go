@@ -24,6 +24,7 @@ var (
 	_destination = flag.String("destination", "", "target file name to generate implementation")
 	_package     = flag.String("package", "", "target implementation structure name")
 	_name        = flag.String("name", "", "target implementation structure name")
+	_constructor = flag.Bool("constructor", false, "generate constructor function")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -334,6 +335,10 @@ func genImplementationString() string {
 }
 
 func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
+	if !*_constructor {
+		return ""
+	}
+
 	returnType := pkg + "." + interfaceName
 	if isSameFolder {
 		returnType = interfaceName
@@ -487,7 +492,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 		scopes = append(scopes, scs...)
 	}
 
-	if !isConstructorExist {
+	if !isConstructorExist && *_constructor {
 		scs, err := goast.ParseScope(0, []byte(genConstructorString(interfaceName, pkg, isSameFolder)))
 		if err != nil {
 			return fmt.Errorf("parse scope for constructor, err: %w", err)

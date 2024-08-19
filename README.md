@@ -6,6 +6,12 @@ using `go generate` to saving time for writing same code in different places.
 
 `domaingen` generates specified file to implement the interface.
 
+### install
+
+```shell
+go install github.com/yanun0323/gox/cmd/domaingen@latest
+```
+
 ### usage
 
 ```bash

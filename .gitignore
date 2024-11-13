@@ -11,6 +11,5 @@ go.work
 # Others
 *.yaml
 *.build
-output
-sample
+*output*
 *same_folder_file*

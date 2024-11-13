@@ -18,12 +18,25 @@ type ExampleExtension struct {
 	Value string `json:"value"`
 }
 
-//go:generate domaingen -destination=../output/usecase/example.go -package=usecase -name=exampleUsecase
+//go:generate domaingen -destination=../test_output/usecase/example.go -package=usecase -name=exampleUsecase
 type ExampleUsecase interface {
+	// Run
 	Run()
+
+	/* RunWith */
 	RunWith(context.Context) error
+
+	/*
+	 RunWithString
+
+	 hello
+	*/
 	RunWithString(ctx context.Context, s1, s2, s3 string) error
-	RunWithElement(context.Context, ExampleRequest) (*ExampleResponse, error)
+
+	// RunWithElement
+	//
+	// hello
+	RunWithElement(context.Context, ExampleRequest) (*ExampleResponse /* response */, error /* error */)
 }
 
 type ExampleRequest struct {
@@ -36,10 +49,9 @@ type ExampleResponse struct {
 	Value any    `json:"value"`
 }
 
-// go: generate domaingen -replace -destination=../output/repository/example.go -package=repository
-//
+//go:generate domaingen -replace -destination=../example_output/repository/example.go -package=repository
 //go:generate domaingen -destination=same_folder_file.go -name=exampleRepo -package=example
-//go:generate domaingen -destination=./output/same_folder_file.go -name=exampleRepo -package=example
+//go:generate domaingen -destination=./output/output.go -name=exampleRepo -package=output
 type ExampleRepository interface {
 	EmbedInterface
 	EmbedInterface3

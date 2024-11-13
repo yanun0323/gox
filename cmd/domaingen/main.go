@@ -58,6 +58,10 @@ func run() error {
 		return nil
 	}
 
+	// for _, ev := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR", "GOMODULE"} {
+	// 	fmt.Println("\t", ev, "=", os.Getenv(ev))
+	// }
+
 	helper.requireTag()
 
 	ast, goLine, pkg, curDir, err := parseAstFromGoGenerator()
@@ -204,9 +208,9 @@ func addPackageNameInFrontOfParamType(targetScope goast.Scope, pkg string) (impo
 		if len(text) == 0 || n.Kind() != kind.ParamType || !helper.isFirstUpperCase(text, '*') {
 			return true
 		}
-
 		importPkg = true
 		n.SetText(helper.insertString(text, "*", pkg+"."))
+
 		return true
 	})
 
@@ -249,6 +253,17 @@ func getInterfaceMethodNodes(ast goast.Ast, targetScope goast.Scope) ([]*goast.N
 		}
 	}
 
+	for _, fnNode := range funcNodes {
+		fnNode.IterNext(func(n *goast.Node) bool {
+			if n.Kind() == kind.NewLine {
+				_ = n.RemovePrev()
+				return false
+			}
+
+			return true
+		})
+	}
+
 	return funcNodes, funcNodesIndexTable
 }
 
@@ -281,10 +296,11 @@ func tryGetDestinationFile() (goast.Ast, string, error) {
 	return desAst, destination, nil
 }
 
-func createNewDestinationFileAndSave(importPkg, isSameFolder bool, interfaceName, pkg, destination string, methodNodes []*goast.Node) error {
+func createNewDestinationFileAndSave(moduleName, isSameFolder bool, interfaceName, pkg, destination string, methodNodes []*goast.Node) error {
+
 	text := fmt.Sprintf("%s\n%s\n%s\n%s\n",
 		genPackageString(),
-		genImportString(importPkg),
+		genImportString(moduleName),
 		genImplementationString(),
 		genConstructorString(interfaceName, pkg, isSameFolder),
 	)
@@ -304,7 +320,25 @@ func createNewDestinationFileAndSave(importPkg, isSameFolder bool, interfaceName
 		return fmt.Errorf("new ast, err: %w", err)
 	}
 
-	if err := newAst.Save(destination); err != nil {
+	{
+		// // XXX: Remove me
+		// bd := strings.Builder{}
+		// for _, sc := range newAst.Scope() {
+		// 	sc.Node().IterNext(func(n *goast.Node) bool {
+		// 		bd.WriteString(n.Text())
+		// 		return true
+		// 	})
+		// }
+
+		// result, err := imports.Process(destination, []byte(bd.String()), nil)
+		// if err != nil {
+		// 	return fmt.Errorf("auto imports, err: %w", err)
+		// }
+
+		// println("imported:\n", string(result))
+	}
+
+	if err := newAst.Save(destination, true); err != nil {
 		return fmt.Errorf("save new ast, err: %w", err)
 	}
 
@@ -315,16 +349,22 @@ func genPackageString() string {
 	return fmt.Sprintf("package %s\n", *_package)
 }
 
-func genImportString(importPkg bool) string {
-	importText := ""
-	if importPkg {
-		s, err := helper.getSourceImportString()
-		if err == nil {
-			importText = fmt.Sprintf("import (\n\t\"%s\"\n)\n", s)
-		}
+func genImportString(moduleName bool) string {
+	if !moduleName {
+		return ""
 	}
 
-	return importText
+	alias, importPath, err := helper.getSourceImportString()
+	if err != nil {
+		return ""
+	}
+
+	if len(alias) != 0 {
+		return fmt.Sprintf("import (\n\t%s \"%s\"\n)\n", alias, importPath)
+
+	}
+
+	return fmt.Sprintf("import (\n\t\"%s\"\n)\n", importPath)
 }
 
 func genImplementationString() string {
@@ -366,7 +406,7 @@ func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName st
 	}
 
 	if *_replace {
-		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
 	} else {
 		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
 	}
@@ -512,7 +552,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 
 	resultAst := desAst.SetScope(scopes)
 
-	return resultAst.Save(destination)
+	return resultAst.Save(destination, true)
 }
 
 func findScopeMethod(sc goast.Scope) (receiverName, receiverType, methodName string, ok bool) {

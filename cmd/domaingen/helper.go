@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -91,26 +93,21 @@ func (helperInstance) getDir() (currentDirectory string, currentFile string, e e
 	if err != nil {
 		return "", "", err
 	}
-
+	cwd = filepath.Clean(cwd)
 	file := filepath.Join(cwd, os.Getenv("GOFILE"))
 	return cwd, file, nil
 }
 
-func (helperInstance) getSourceImportString() (string, error) {
-	cwd, file, err := helperInstance{}.getDir()
+func (helperInstance) findProjectDir() (string, error) {
+	_, filePath, err := helperInstance{}.getDir()
 	if err != nil {
 		return "", err
 	}
 
-	cwdSplit := strings.SplitAfter(cwd, string(os.PathSeparator))
-	cwdSplit = cwdSplit[:len(cwdSplit)-1]
-	cwd = strings.Join(cwdSplit, "")
-
-	ss := strings.SplitAfter(file, string(os.PathSeparator))
-
-	for len(ss) != 0 {
-		ss = ss[:len(ss)-1]
-		d := strings.Join(ss, "")
+	filePathSpan := strings.SplitAfter(filePath, string(os.PathSeparator))
+	for len(filePathSpan) != 0 {
+		filePathSpan = filePathSpan[:len(filePathSpan)-1]
+		d := strings.Join(filePathSpan, "")
 		_, err := os.Stat(d + "go.mod")
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -120,11 +117,38 @@ func (helperInstance) getSourceImportString() (string, error) {
 			return "", err
 		}
 
-		prefix := strings.Join(ss[:len(ss)-1], "")
-		return strings.TrimPrefix(cwd, prefix) + os.Getenv("GOPACKAGE"), nil
+		return filepath.Join(filePathSpan...), nil
 	}
 
 	return "", errors.New("project not found")
+}
+
+func (h helperInstance) getSourceImportString() (alias, importPath string, err error) {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return "", "", err
+	}
+
+	moduleName, err := h.getModuleName()
+	if err != nil {
+		return "", "", err
+	}
+
+	projectDir, err := h.findProjectDir()
+	if err != nil {
+		return "", "", err
+	}
+
+	relativePath := strings.TrimPrefix(currentDir, projectDir)
+	relativePathSpan := strings.Split(relativePath, string(os.PathSeparator))
+
+	ali := os.Getenv("GOPACKAGE")
+	if len(relativePathSpan) != 0 && relativePathSpan[len(relativePathSpan)-1] == ali {
+		ali = ""
+	}
+
+	return ali, strings.Join([]string{moduleName, strings.Join(relativePathSpan, "/")}, ""), nil
+
 }
 
 func (helperInstance) EqualFold(a, b string, ignoreChars ...byte) bool {
@@ -153,4 +177,54 @@ func (helperInstance) insertString(s, prefix, insert string) string {
 	}
 
 	return insert + s
+}
+
+func (helperInstance) getGoModulePath() (string, error) {
+	env, err := exec.Command("go", "env").Output()
+	if err != nil {
+		return "", err
+	}
+
+	// find GOMOD keyword
+	rows := strings.Split(string(env), "\n")
+	for _, row := range rows {
+		span := strings.Split(row, "=")
+		if len(span) != 2 || span[0] != "GOMOD" {
+			continue
+		}
+
+		mod := strings.Trim(span[1], "'")
+		mod = strings.Trim(mod, "\"")
+		if len(mod) == 0 {
+			return "", errors.New("go.mod not found, please run this program in the root folder of a go module project")
+		}
+
+		return mod, nil
+	}
+
+	return "", errors.New("go.mod not found, please run this program in the root folder of a go module project")
+}
+
+func (h helperInstance) getModuleName() (string, error) {
+	path, err := h.getGoModulePath()
+	if err != nil {
+		return "", err
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("go mod file not found, err: %w", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "module ") {
+			name := strings.TrimPrefix(line, "module ")
+			return strings.TrimSpace(name), nil
+		}
+	}
+
+	return "", errors.New("module not found")
 }

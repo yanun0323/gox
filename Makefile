@@ -10,11 +10,19 @@ ls:
 
 run:
 	make install &&\
+	make clean.test &&\
 	go generate ./...
 
 run.debug:
 	make install &&\
+	make clean.test &&\
 	go generate -v ./...
+
+clean.test:
+	rm -rf ./example_output ;\
+	rm -rf ./example/output ;\
+	rm -f ./example/same_folder_file.go
+
 
 help:
 	make install &&\

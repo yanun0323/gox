@@ -18,7 +18,7 @@ type ExampleExtension struct {
 	Value string `json:"value"`
 }
 
-//go:generate domaingen -destination=../test_output/usecase/example.go -package=usecase -name=exampleUsecase
+//go:generate domaingen -destination=../example_output/usecase/example.go -package=usecase -name=exampleUsecase
 type ExampleUsecase interface {
 	// Run
 	Run()

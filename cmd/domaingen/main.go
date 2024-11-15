@@ -395,7 +395,7 @@ func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
 // add the 'func(x *X)' to the start of func node
 // and the '{}' to the end of func node
 func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName string) *goast.Node {
-	tail := methodNode.IterNext(func(nn *goast.Node) bool { return nn.Next() != nil })
+	tail := methodNode.Last()
 	for {
 		switch tail.Kind() {
 		case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
@@ -405,11 +405,27 @@ func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName st
 		break
 	}
 
+	tail.ReplaceNext(goast.NewNodes(tail.Line(), "{"))
+	tail = tail.Last()
+
 	if *_replace {
-		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName), "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
-	} else {
-		tail.ReplaceNext(goast.NewNodes(tail.Line(), "{", "\n", "\t", "// TODO: Implement me", "\n", "}", "\n", "\n", "\n"))
+		tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", fmt.Sprintf("// Replace by %s", _commandName)))
+		tail = tail.Last()
 	}
+
+	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", "// TODO: Implement me"))
+	tail = tail.Last()
+
+	// if rn, ok := generateReturnValue(methodNode); ok && rn != nil {
+	// 	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", "return", " "))
+	// 	tail = tail.Last()
+
+	// 	tail.ReplaceNext(rn)
+	// 	tail = tail.Last()
+	// }
+
+	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "}", "\n", "\n", "\n"))
+	tail = tail.Last()
 
 	if len(receiverName) == 0 {
 		receiverName = string(helper.firstLowerCase(*_name)[0])
@@ -422,9 +438,103 @@ func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName st
 	}
 
 	head := goast.NewNodes(methodNode.Line(), "\n", "func", "(", receiverName, " ", "*"+*_name, ")", " ")
-	headTail := head.IterNext(func(n *goast.Node) bool { return n.Next() != nil })
-	headTail.ReplaceNext(methodNode)
+	head.Last().ReplaceNext(methodNode)
+
 	return head
+}
+
+func generateReturnValue(methodNode *goast.Node) (*goast.Node, bool) {
+	funcParenthesisCount := 0
+	returnValueHead := methodNode.IterNext(func(n *goast.Node) bool {
+		return n.Kind() != kind.ParenthesisLeft
+	}).IterNext(func(n *goast.Node) bool {
+		switch n.Kind() {
+		case kind.ParenthesisLeft:
+			funcParenthesisCount++
+		case kind.ParenthesisRight:
+			funcParenthesisCount--
+		}
+
+		return funcParenthesisCount != 0
+	}).Next()
+
+	hasReturnValue := false
+	returnValueHead.IterNext(func(n *goast.Node) bool {
+		switch n.Kind() {
+		case kind.Space:
+			return true
+		case kind.NewLine:
+			return false
+		default:
+			hasReturnValue = true
+			return false
+		}
+	})
+
+	if !hasReturnValue {
+		return nil, false
+	}
+
+	parenthesisReturnValue := false
+	returnValueHead.IterNext(func(n *goast.Node) bool {
+		switch n.Kind() {
+		case kind.ParenthesisLeft:
+			parenthesisReturnValue = true
+			return false
+		case kind.Space, kind.Comment:
+			return true
+		default:
+			return false
+		}
+	})
+
+	result := &goast.Node{}
+	addResult := func(n *goast.Node) {
+		result.ReplaceNext(n)
+	}
+
+	cleanResult := func() *goast.Node {
+		result = result.First().Next()
+		result.RemovePrev()
+		return result
+	}
+
+	if !parenthesisReturnValue {
+		returnValueHead.IterNext(func(n *goast.Node) bool {
+			switch n.Kind() {
+			case kind.NewLine:
+				return false
+			case kind.CurlyBracketLeft:
+				return true
+			default:
+				addResult(n.Copy())
+				return true
+			}
+		})
+
+		return cleanResult(), true
+	}
+
+	ns := helper.extractParenthesisParameters(returnValueHead)
+	if len(ns) == 0 {
+		return nil, false
+	}
+
+	for _, n := range ns {
+		n.IterNext(func(n *goast.Node) bool {
+			switch n.Kind() {
+			case kind.Comment:
+			default:
+				addResult(n.Copy())
+			}
+
+			return true
+		})
+
+		addResult(goast.NewNode(0, ",", kind.Comma))
+	}
+
+	return cleanResult(), true
 }
 
 func constructFuncName(interfaceName string) string {
@@ -445,22 +555,27 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 	existReceiverName := ""
 
 	if *_replace {
-		// keep other code
+		/* keep other code */
 		desAst.IterScope(func(sc goast.Scope) bool {
 			if sc.Kind() == scope.Package {
 				isPackageExist = true
 			}
 
+			/* keep struct */
 			name, ok := sc.GetStructName()
 			if ok && strings.EqualFold(name, *_name) {
-				return true
+				isStructExist = true
+				// return true
 			}
 
+			/* keep construct */
 			fnName, ok := sc.GetFuncName()
 			if ok && strings.EqualFold(fnName, newFuncName) {
-				return true
+				isConstructorExist = true
+				// return true
 			}
 
+			/* drop method */
 			receiverName, receiverType, _, ok := findScopeMethod(sc)
 			if ok && helper.EqualFold(receiverType, *_name, '*') {
 				if len(receiverName) != 0 {
@@ -475,7 +590,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 			return true
 		})
 	} else {
-		// find isStructExist, isConstructorExist and if methods exist
+		/* find isStructExist, isConstructorExist and if methods exist */
 		desAst.IterScope(func(sc goast.Scope) bool {
 			scopes = append(scopes, sc)
 

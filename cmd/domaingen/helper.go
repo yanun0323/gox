@@ -10,6 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/yanun0323/goast"
+	"github.com/yanun0323/goast/kind"
 )
 
 func NoError(err error, msg ...string) {
@@ -227,4 +230,53 @@ func (h helperInstance) getModuleName() (string, error) {
 	}
 
 	return "", errors.New("module not found")
+}
+
+func (helperInstance) extractParenthesisParameters(n *goast.Node) []*goast.Node {
+	leftParenthesisNext := n.IterNext(func(n *goast.Node) bool {
+		return n.Kind() != kind.ParenthesisLeft
+	}).Next().Copy(true)
+
+	result := []*goast.Node{}
+	parenthesisCount := 0
+
+	buf := &goast.Node{}
+	addBuf := func(n *goast.Node) {
+		buf.InsertNext(n.Copy())
+		buf = buf.Last()
+	}
+
+	makeBufResult := func() {
+		n := buf.First().Next()
+		n.RemovePrev()
+		result = append(result, n)
+		buf = &goast.Node{}
+	}
+
+	leftParenthesisNext.IterNext(func(n *goast.Node) bool {
+		switch n.Kind() {
+		case kind.ParenthesisLeft:
+			parenthesisCount++
+			addBuf(n)
+			return true
+		case kind.ParenthesisRight:
+			parenthesisCount--
+			if parenthesisCount == -1 {
+				makeBufResult()
+			} else {
+				addBuf(n)
+			}
+			return false
+		case kind.Comma:
+			makeBufResult()
+			return true
+		case kind.NewLine:
+			return true
+		default:
+			addBuf(n)
+			return true
+		}
+	})
+
+	return result
 }

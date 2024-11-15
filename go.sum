@@ -1,5 +1,5 @@
-github.com/yanun0323/goast v1.2.3 h1:FuHmeITsIUMLtHs6PEb9rdkDmvV40NZX9ts3khEQI3s=
-github.com/yanun0323/goast v1.2.3/go.mod h1:wcUyKapavRclO/5vaSU0GQ0ylePItpTR0UpYzdJf6zQ=
+github.com/yanun0323/goast v1.2.6 h1:a7EaWMLpf1Gai3YZ5anZilVXj06OS77aOSMg+YiyGqY=
+github.com/yanun0323/goast v1.2.6/go.mod h1:wcUyKapavRclO/5vaSU0GQ0ylePItpTR0UpYzdJf6zQ=
 golang.org/x/mod v0.22.0 h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
 golang.org/x/mod v0.22.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
 golang.org/x/sync v0.9.0 h1:fEo0HyrW1GIgZdpbhCRO0PkJajUS5H9IFUztCgEo2jQ=

@@ -23,6 +23,7 @@ var (
 	_noEmbed     = flag.Bool("noembed", false, "skip implementing embed interface functions")
 	_destination = flag.String("destination", "", "target file name to generate implementation")
 	_package     = flag.String("package", "", "target implementation structure name")
+	_struct      = flag.Bool("struct", false, "generate struct")
 	_name        = flag.String("name", "", "target implementation structure name")
 	_constructor = flag.Bool("constructor", false, "generate constructor function")
 )
@@ -33,11 +34,12 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "%s: generate an implementation from the interface \n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t\t\t\tshow usage\n")
+	fmt.Fprintf(os.Stderr, "\t-struct\t\t\tgenerate struct\n")
 	fmt.Fprintf(os.Stderr, "\t-name\t\t\t\timplemented struct name\t\t\t-name=usecase\n")
+	fmt.Fprintf(os.Stderr, "\t-constructor\t\t\tgenerate constructor function\n")
 	fmt.Fprintf(os.Stderr, "\t-package\t(require)\timplemented struct package name\n")
 	fmt.Fprintf(os.Stderr, "\t-destination\t(require)\tgenerated file path\t\t\t-destination=../../usecase/member_usecase.go\n")
 	fmt.Fprintf(os.Stderr, "\t-replace\t\t\tforce replace exist struct/func/method\n")
-	fmt.Fprintf(os.Stderr, "\t-constructor\t\t\tgenerate constructor function\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\texample:\n")
 	fmt.Fprintf(os.Stderr, "\n")
@@ -368,6 +370,10 @@ func genImportString(moduleName bool) string {
 }
 
 func genImplementationString() string {
+	if !*_struct {
+		return ""
+	}
+
 	if *_replace {
 		return fmt.Sprintf("type %s struct {\n\t// Replace by %s\n\t// TODO: Implement me\n}\n", *_name, _commandName)
 	} else {

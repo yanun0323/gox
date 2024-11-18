@@ -392,9 +392,9 @@ func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
 	}
 
 	if *_replace {
-		return fmt.Sprintf("func %s() %s {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), returnType, _commandName, *_name)
+		return fmt.Sprintf("func %s() (%s, error) {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}, nil\n}\n", constructFuncName(interfaceName), returnType, _commandName, *_name)
 	} else {
-		return fmt.Sprintf("func %s() %s {\n\t// TODO: Implement me\n\treturn &%s{}\n}\n", constructFuncName(interfaceName), returnType, *_name)
+		return fmt.Sprintf("func %s() (%s, error) {\n\t// TODO: Implement me\n\treturn &%s{}, nil\n}\n", constructFuncName(interfaceName), returnType, *_name)
 	}
 }
 

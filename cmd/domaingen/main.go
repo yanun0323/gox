@@ -436,7 +436,7 @@ func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName st
 		tail = tail.Last()
 	}
 
-	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", fmt.Sprintf("// TODO: Implement %s.%s", *_name, methodName)))
+	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", fmt.Sprintf("// TODO: Implement %s.%s", *_name, methodName), "\n", "panic", "(", "\"", "\"", ")"))
 	tail = tail.Last()
 
 	// if rn, ok := generateReturnValue(methodNode); ok && rn != nil {

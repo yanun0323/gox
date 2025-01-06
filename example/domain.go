@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-//go:generate modelgen -destination=../output/entity/example.go -package=entity -name=ExampleEntity -tagged -replace -relative
+// // go:generate modelgen -destination=../output/entity/example.go -package=entity -name=ExampleEntity -struct -construct -tagged -replace -relative
 type Example struct {
 	ID        int64  `gorm:"column:id;primaryKey;autoIncrement"`
 	Key       string `gorm:"column:key"`

@@ -17,15 +17,15 @@ import (
 const _commandName = "domaingen"
 
 var (
-	_help        = flag.Bool("h", false, "show command help")
-	_debug       = flag.Bool("v", false, "show debug information")
-	_replace     = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
-	_noEmbed     = flag.Bool("noembed", false, "skip implementing embed interface functions")
-	_destination = flag.String("destination", "", "target file name to generate implementation")
-	_package     = flag.String("package", "", "target implementation structure name")
-	_struct      = flag.Bool("struct", false, "generate struct")
-	_name        = flag.String("name", "", "target implementation structure name")
-	_constructor = flag.Bool("constructor", false, "generate constructor function")
+	_help          = flag.Bool("h", false, "show command help")
+	_debug         = flag.Bool("v", false, "show debug information")
+	_replace       = flag.Bool("replace", false, "replace all structure and method if there's already a same structure")
+	_noEmbed       = flag.Bool("noembed", false, "skip implementing embed interface functions")
+	_destination   = flag.String("destination", "", "target file name to generate implementation")
+	_package       = flag.String("package", "", "target implementation structure name")
+	_noStruct      = flag.Bool("noStruct", false, "generate struct")
+	_name          = flag.String("name", "", "target implementation structure name")
+	_noConstructor = flag.Bool("noConstructor", false, "generate constructor function")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -34,9 +34,9 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "%s: generate an implementation from the interface \n", _commandName)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "\t-h\t\t\t\tshow usage\n")
-	fmt.Fprintf(os.Stderr, "\t-struct\t\t\tgenerate struct\n")
+	fmt.Fprintf(os.Stderr, "\t-noStruct\t\t\tskip generate struct\n")
 	fmt.Fprintf(os.Stderr, "\t-name\t\t\t\timplemented struct name\t\t\t-name=usecase\n")
-	fmt.Fprintf(os.Stderr, "\t-constructor\t\t\tgenerate constructor function\n")
+	fmt.Fprintf(os.Stderr, "\t-noConstructor\t\t\tskip generate constructor function\n")
 	fmt.Fprintf(os.Stderr, "\t-package\t(require)\timplemented struct package name\n")
 	fmt.Fprintf(os.Stderr, "\t-destination\t(require)\tgenerated file path\t\t\t-destination=../../usecase/member_usecase.go\n")
 	fmt.Fprintf(os.Stderr, "\t-replace\t\t\tforce replace exist struct/func/method\n")
@@ -370,19 +370,19 @@ func genImportString(moduleName bool) string {
 }
 
 func genImplementationString() string {
-	if !*_struct {
+	if *_noStruct {
 		return ""
 	}
 
 	if *_replace {
-		return fmt.Sprintf("type %s struct {\n\t// Replace by %s\n\t// TODO: Implement me\n}\n", *_name, _commandName)
+		return fmt.Sprintf("type %s struct {\n\t// Replace by %s\n\t// TODO: Implement %s\n}\n", *_name, _commandName, *_name)
 	} else {
-		return fmt.Sprintf("type %s struct {\n\t// TODO: Implement me\n}\n", *_name)
+		return fmt.Sprintf("type %s struct {\n\t// TODO: Implement %s\n}\n", *_name, *_name)
 	}
 }
 
 func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
-	if !*_constructor {
+	if *_noConstructor {
 		return ""
 	}
 
@@ -391,10 +391,12 @@ func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
 		returnType = interfaceName
 	}
 
+	fnName := constructFuncName(interfaceName)
+
 	if *_replace {
-		return fmt.Sprintf("func %s() (%s, error) {\n\t// Replace by %s\n\t// TODO: Implement me\n\treturn &%s{}, nil\n}\n", constructFuncName(interfaceName), returnType, _commandName, *_name)
+		return fmt.Sprintf("func %s() (%s, error) {\n\t// Replace by %s\n\t// TODO: Implement %s\n\treturn &%s{}, nil\n}\n", fnName, returnType, _commandName, fnName, *_name)
 	} else {
-		return fmt.Sprintf("func %s() (%s, error) {\n\t// TODO: Implement me\n\treturn &%s{}, nil\n}\n", constructFuncName(interfaceName), returnType, *_name)
+		return fmt.Sprintf("func %s() (%s, error) {\n\t// TODO: Implement %s\n\treturn &%s{}, nil\n}\n", fnName, returnType, fnName, *_name)
 	}
 }
 
@@ -402,6 +404,21 @@ func genConstructorString(interfaceName, pkg string, isSameFolder bool) string {
 // and the '{}' to the end of func node
 func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName string) *goast.Node {
 	tail := methodNode.Last()
+	methodName := func(n *goast.Node) string {
+		for {
+			switch n.Kind() {
+			case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
+				return ""
+			case kind.FuncName:
+				name := strings.TrimSpace(n.Text())
+				if len(name) != 0 {
+					return name
+				}
+			}
+			n = n.Next()
+		}
+	}(methodNode)
+
 	for {
 		switch tail.Kind() {
 		case kind.NewLine, kind.Space, kind.Tab, kind.CurlyBracketRight:
@@ -419,7 +436,7 @@ func addMethodImplementationPrefixSuffix(methodNode *goast.Node, receiverName st
 		tail = tail.Last()
 	}
 
-	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", "// TODO: Implement me"))
+	tail.ReplaceNext(goast.NewNodes(tail.Line(), "\n", "\t", fmt.Sprintf("// TODO: Implement %s.%s", *_name, methodName)))
 	tail = tail.Last()
 
 	// if rn, ok := generateReturnValue(methodNode); ok && rn != nil {
@@ -654,7 +671,7 @@ func updateDestinationFileAndSave(desAst goast.Ast, isSameFolder bool, interface
 		scopes = append(scopes, scs...)
 	}
 
-	if !isConstructorExist && *_constructor {
+	if !isConstructorExist && !*_noConstructor {
 		scs, err := goast.ParseScope(0, []byte(genConstructorString(interfaceName, pkg, isSameFolder)))
 		if err != nil {
 			return fmt.Errorf("parse scope for constructor, err: %w", err)
